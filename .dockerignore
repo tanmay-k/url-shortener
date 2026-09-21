@@ -1,0 +1,53 @@
+# Ignore Maven-related files
+*.iml
+*.ipr
+*.iws
+.idea/
+target/
+
+# Ignore Gradle-related files
+build/
+.gradle/
+out/
+
+# Ignore other build artifacts
+*.class
+*.log
+*.tmp
+
+# Ignore test directories and results
+test/
+tests/
+**/*Test.class
+**/*Tests.class
+**/test-classes/
+**/surefire-reports/
+**/failsafe-reports/
+**/*.ser
+**/*.jar
+
+# Ignore IDE-specific files
+.vscode/
+*.sublime-workspace
+*.sublime-project
+*.sublime-settings
+
+# Ignore Docker-related files
+Dockerfile*
+docker-compose.yml
+docker-compose.override.yml
+
+# Ignore OS-specific files and directories
+__pycache__/
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.svn/
+CVS/
+
+# Ignore Node.js-related files (if your project includes a frontend)
+node_modules/
+package-lock.json
+
+# Ignore other unnecessary files
+*.DS_Store

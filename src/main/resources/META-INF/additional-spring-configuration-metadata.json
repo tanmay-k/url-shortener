@@ -1,0 +1,27 @@
+{"properties": [
+	{
+	    "name": "app",
+	    "type": "java.lang.String",
+	    "description": "Custom application properties"
+	},
+   {
+    "name": "app.security.jwt-secret",
+    "type": "java.lang.String",
+    "description": "The JWT secret key."
+  },
+  {
+    "name": "app.security.jwt-issuer",
+    "type": "java.lang.String",
+    "description": "A description for 'app.security.jwt-issuer'"
+  },
+  {
+    "name": "app.security.jwt_validity",
+    "type": "java.lang.String",
+    "description": "A description for 'app.security.jwt_validity'"
+  },
+  {
+    "name": "app.security.jwt-audience",
+    "type": "java.lang.String",
+    "description": "A description for 'app.security.jwt-audience'"
+  }
+]}
