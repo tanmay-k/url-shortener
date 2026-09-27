@@ -14,7 +14,8 @@ public enum ErrorCode {
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "Something went wrong.", HttpStatus.INTERNAL_SERVER_ERROR),
 	INVALID_MAPPED_URL("INVALID_MAPPED_URL", "Invalid URL provided for mapping", HttpStatus.BAD_REQUEST),
 	USER_NOT_FOUND("USER_NOT_FOUND", "User not found.", HttpStatus.NOT_FOUND),
-	NOT_FOUND("NOT_FOUND", "Not found.", HttpStatus.NOT_FOUND);
+	NOT_FOUND("NOT_FOUND", "Not found.", HttpStatus.NOT_FOUND),
+	TOO_MANY_REQUESTS("TOO_MANY_REQUESTS", "Rate limit exceeded. Please try again later.", HttpStatus.TOO_MANY_REQUESTS);
 
 	private String errorCode;
 	private String message;
