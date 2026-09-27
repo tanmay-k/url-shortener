@@ -35,3 +35,8 @@ build/
 ### Logs
 logs/
 *.log
+
+### Secrets
+.env
+.env.*
+!.env.example

@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: url_shortner
+  datasource:
+    url: jdbc:mysql://host.docker.internal:3306/url_shortner
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 4
+      maximum-pool-size: 8
+  jpa:
+    hibernate:
+      ddl-auto: none
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: true
+  threads:
+    virtual:
+      enabled: true

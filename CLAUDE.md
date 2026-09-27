@@ -17,7 +17,16 @@ A Spring Boot (4.1.0, Java 21) URL shortener. REST API for creating short codes 
 
 Docker build runs with `--spring.profiles.active=dev` (see `Dockerfile`).
 
-Requires a running MySQL instance matching the active profile's `spring.datasource` config (`local` → `localhost:3306/url_shortner`, `dev` → `host.docker.internal:3306/url_shortner`, both `root/root`). `spring.jpa.hibernate.ddl-auto` is `none`, so the `url_mapping` and user tables must exist already — there is no migration tool in this repo.
+Requires a running MySQL instance matching the active profile's `spring.datasource` config (`local` → `localhost:3306/url_shortner`, `dev` → `host.docker.internal:3306/url_shortner`, both `root/root` by default). `spring.jpa.hibernate.ddl-auto` is `none`, so the `url_mapping` and user tables must exist already — there is no migration tool in this repo.
+
+### Secrets
+
+DB credentials and the JWT secret are read from environment variables (`DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_VALIDITY`) via `${VAR:default}` placeholders in `application.yaml`/`application-local.yml`/`application-dev.yml` — see `.env.example` for the full list. `DB_*` and `JWT_ISSUER`/`JWT_AUDIENCE`/`JWT_VALIDITY` default to the local dev values if unset; `JWT_SECRET` has no default and must be set, or the app fails fast at startup with `PlaceholderResolutionException: Could not resolve placeholder 'JWT_SECRET'`. No secrets-manager dependency is wired in yet — this is a placeholder for a future Vault/AWS Secrets Manager/Azure Key Vault integration, which would only need to supply the same environment variables (or an earlier Spring `PropertySource`).
+
+Ways to supply these locally:
+- **Shell**: copy `.env.example` to `.env`, fill in real values, and export them into your shell before running (`.env` is gitignored, `.env.example` is not).
+- **STS/Eclipse run configuration**: open the launch config (`Run > Run Configurations...`), select the `UrlShortnerApplication` entry, and set the six variables on the **Environment** tab (not **Arguments** — program arguments aren't read as env vars or Spring properties here). This project's `UrlShortnerApplication.launch` file already has this wired up.
+  - ⚠️ `UrlShortnerApplication.launch` **is tracked in git**. Only put non-production, throwaway values in it (the current `root`/`secret`/etc. dummy values are fine) — never a real prod DB password or JWT signing secret, since that would recreate the exact hardcoded-secret problem this setup was meant to fix. For anything sensitive, prefer `.env` (gitignored) or an untracked/local-only launch config instead.
 
 ## Architecture
 
