@@ -18,3 +18,10 @@ spring:
   threads:
     virtual:
       enabled: true
+
+app:
+  rate-limit:
+    login-requests-per-minute: 100
+    registration-requests-per-minute: 100
+    url-creation-requests-per-minute: 200
+    redirect-requests-per-minute: 600
