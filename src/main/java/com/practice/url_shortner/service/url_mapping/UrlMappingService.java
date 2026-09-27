@@ -34,6 +34,8 @@ public class UrlMappingService implements IUrlMappingService {
 
 	private final IUserRepository userRepository;
 
+	private final ClickEventPublisher clickEventPublisher;
+
 	@Override
 	//	@Transactional
 	public NewUrlMappingResponseRecord createNewMapping(String longUrl) {
@@ -74,8 +76,14 @@ public class UrlMappingService implements IUrlMappingService {
 
 	@Override
 	public String resolveShortCodeToUrl(String shortCode) {
+		return resolveShortCodeToUrl(shortCode, null);
+	}
+
+	@Override
+	public String resolveShortCodeToUrl(String shortCode, String userAgent) {
 		UrlMappingEntity urlMappingEntity = urlMappingRepository.findByShortCodeAndEnabled(shortCode, true)
 				.orElseThrow(() -> CustomException.builder().errorCode(ErrorCode.NOT_FOUND).build());
+		clickEventPublisher.publishClickEvent(userAgent, shortCode);
 		return urlMappingEntity.getLongUrl();
 	}
 }

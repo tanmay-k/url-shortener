@@ -8,5 +8,7 @@ public interface IUrlMappingService {
 
 	String resolveShortCodeToUrl(String shortCode);
 
+	String resolveShortCodeToUrl(String shortCode, String userAgent);
+
 	void disableMapping(String longUrl);
 }
