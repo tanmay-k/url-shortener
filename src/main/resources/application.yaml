@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: url_shortner
+  profiles:
+    active:
+    - local
+
+springdoc:
+  show-actuator: true
+  group-configs:
+    - group: v1
+      paths-to-match: /api/1/**
+
+app:
+  security:
+    jwt-secret: ${JWT_SECRET}
+    jwt-issuer: ${JWT_ISSUER:tanmay@localhost}
+    jwt-audience: ${JWT_AUDIENCE:url_shortner}
+    jwt_validity: ${JWT_VALIDITY:3600}

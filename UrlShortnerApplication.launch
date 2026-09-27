@@ -7,6 +7,14 @@
     <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
         <listEntry value="1"/>
     </listAttribute>
+    <mapAttribute key="org.eclipse.debug.core.environmentVariables">
+        <mapEntry key="DB_PASSWORD" value="root"/>
+        <mapEntry key="DB_USERNAME" value="root"/>
+        <mapEntry key="JWT_AUDIENCE" value="url_shortner"/>
+        <mapEntry key="JWT_ISSUER" value="tanmay@localhost"/>
+        <mapEntry key="JWT_SECRET" value="secret"/>
+        <mapEntry key="JWT_VALIDITY" value="3600"/>
+    </mapAttribute>
     <listAttribute key="org.eclipse.debug.ui.favoriteGroups">
         <listEntry value="org.eclipse.debug.ui.launchGroup.debug"/>
         <listEntry value="org.eclipse.debug.ui.launchGroup.run"/>
