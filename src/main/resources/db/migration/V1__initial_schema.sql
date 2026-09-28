@@ -28,6 +28,5 @@ CREATE TABLE IF NOT EXISTS url_mapping (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- ALTER TABLE url_mapping ADD UNIQUE INDEX IF NOT EXISTS url_mapping_unique_IDX (long_url);
 ALTER TABLE url_mapping ADD UNIQUE INDEX IF NOT EXISTS url_mapping_short_code_IDX (short_code);
 ALTER TABLE url_mapping ADD CONSTRAINT IF NOT EXISTS url_mapping_users_FK FOREIGN KEY (created_by) REFERENCES users(id);
