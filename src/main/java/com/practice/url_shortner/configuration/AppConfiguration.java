@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.accept.ApiVersionResolver;
 import org.springframework.web.accept.PathApiVersionResolver;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Configuration
 public class AppConfiguration {
 
@@ -12,5 +14,10 @@ public class AppConfiguration {
 	ApiVersionResolver apiVersionResolver() {
 		return new PathApiVersionResolver(1,
 				requestPath -> requestPath.toString().startsWith("/api/"));
+	}
+
+	@Bean
+	ObjectMapper objectMapper() {
+		return new ObjectMapper();
 	}
 }
