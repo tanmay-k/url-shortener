@@ -23,5 +23,29 @@
     "name": "app.security.jwt-audience",
     "type": "java.lang.String",
     "description": "A description for 'app.security.jwt-audience'"
+  },
+  {
+    "name": "app.rate-limit.login-requests-per-minute",
+    "type": "java.lang.Integer",
+    "description": "Maximum login attempts allowed per IP address per minute.",
+    "defaultValue": 5
+  },
+  {
+    "name": "app.rate-limit.registration-requests-per-minute",
+    "type": "java.lang.Integer",
+    "description": "Maximum account registration requests allowed per IP address per minute.",
+    "defaultValue": 5
+  },
+  {
+    "name": "app.rate-limit.url-creation-requests-per-minute",
+    "type": "java.lang.Integer",
+    "description": "Maximum short URL creation requests allowed per authenticated user per minute.",
+    "defaultValue": 20
+  },
+  {
+    "name": "app.rate-limit.redirect-requests-per-minute",
+    "type": "java.lang.Integer",
+    "description": "Maximum redirect requests allowed per IP address per minute.",
+    "defaultValue": 60
   }
 ]}
