@@ -21,13 +21,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.exception.CustomException;
 import com.practice.url_shortner.model.AuthenticationResponseRecord;
+import com.practice.url_shortner.configuration.AppConfiguration;
 import com.practice.url_shortner.security.JwtAuthenticationFilter;
+import com.practice.url_shortner.security.RateLimitingFilter;
 import com.practice.url_shortner.security.SecurityConfig;
 import com.practice.url_shortner.service.user.IUserService;
 import com.practice.url_shortner.utility.JwtUtils;
 
 @WebMvcTest(UserController.class)
-@Import({ SecurityConfig.class, JwtAuthenticationFilter.class })
+@Import({ SecurityConfig.class, JwtAuthenticationFilter.class, RateLimitingFilter.class, AppConfiguration.class })
 class UserControllerTest {
 
 	@Autowired
