@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: url_shortner
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+app:
+  security:
+    jwt-secret: test-secret-key-for-unit-tests-only
+    jwt-issuer: test-issuer
+    jwt-audience: test-audience
+    jwt-validity: 1
