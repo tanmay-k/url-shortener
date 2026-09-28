@@ -17,7 +17,19 @@ A Spring Boot (4.1.0, Java 21) URL shortener. REST API for creating short codes 
 
 Docker build runs with `--spring.profiles.active=dev` (see `Dockerfile`).
 
-Requires a running MySQL instance matching the active profile's `spring.datasource` config (`local` → `localhost:3306/url_shortner`, `dev` → `host.docker.internal:3306/url_shortner`, both `root/root` by default). `spring.jpa.hibernate.ddl-auto` is `none`, so the `url_mapping` and user tables must exist already — there is no migration tool in this repo.
+Requires a running MySQL instance matching the active profile's `spring.datasource` config (`local` → `localhost:3306/url_shortner`, `dev` → `host.docker.internal:3306/url_shortner`, both `root/root` by default). `spring.jpa.hibernate.ddl-auto` is `none`; schema is managed by Flyway instead.
+
+### Database migrations
+
+Flyway runs automatically on startup for the `local` and `dev` profiles (`spring.flyway.enabled: true`, `spring.flyway.locations: classpath:db/migration`, `spring.flyway.baseline-on-migrate: true`). Migration scripts live in `src/main/resources/db/migration` (`V{n}__description.sql`) and are tracked in the `flyway_schema_history` table. `V1__initial_schema.sql` is plain, ordinary DDL — no `IF NOT EXISTS` tricks — because `baseline-on-migrate` handles the "schema already exists" case at the Flyway level instead (see below), so the SQL itself stays readable.
+
+- **Dependency**: use `org.springframework.boot:spring-boot-starter-flyway` (not the raw `org.flywaydb:flyway-core`) plus `org.flywaydb:flyway-mysql` for the MySQL dialect. As of Spring Boot 4.1, Flyway's autoconfiguration (`FlywayAutoConfiguration`) lives in a separate `spring-boot-flyway` module only pulled in by the starter — depending on `flyway-core` directly puts the Flyway library on the classpath but silently does nothing, since Spring never wires it up. No error, no `flyway_schema_history` table, nothing in the logs.
+- **`baseline-on-migrate`**: Flyway refuses to touch a non-empty schema that has no history table yet (`FlywayException: Found non-empty schema(s) ... but no schema history table`). `baseline-on-migrate: true` fixes that by baselining such a schema at `baseline-version` (default `1`, i.e. V1) instead of erroring — since that matches V1 exactly, V1 is recorded as already applied and its SQL is never executed against a database that already has the schema. Against a genuinely empty database, baselining doesn't apply and V1 runs normally, creating everything from scratch. Verified both paths end-to-end against a live MySQL instance.
+- Avoid `IF NOT EXISTS`/`IF EXISTS` on `ALTER TABLE ADD/DROP COLUMN/INDEX/CONSTRAINT` in migration scripts — that's a MariaDB extension, not standard MySQL, and throws a syntax error (`1064`) even on MySQL 8.0.42. `CREATE TABLE IF NOT EXISTS`/`DROP TABLE IF EXISTS` are fine.
+
+Tests use H2 with `spring.jpa.hibernate.ddl-auto: create-drop` and explicitly disable Flyway (`spring.flyway.enabled: false` in `application-test.yml`) — MySQL-flavored migration DDL isn't guaranteed to run on H2.
+
+Flyway Community (unlike Teams/Enterprise) has no automatic "undo" migration support, so rollbacks are tracked manually: every new `V{n}__description.sql` added to `db/migration` must be paired with a `V{n}__description_rollback.sql` in `src/main/resources/db/rollback`, containing the inverse DDL. Rollback scripts are never executed by Flyway — see `db/rollback/README.md` for how to apply one by hand.
 
 ### Secrets
 
