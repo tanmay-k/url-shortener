@@ -17,7 +17,15 @@ A Spring Boot (4.1.0, Java 21) URL shortener. REST API for creating short codes 
 
 Docker build runs with `--spring.profiles.active=dev` (see `Dockerfile`).
 
-Requires a running MySQL instance matching the active profile's `spring.datasource` config (`local` → `localhost:3306/url_shortner`, `dev` → `host.docker.internal:3306/url_shortner`, both `root/root` by default). `spring.jpa.hibernate.ddl-auto` is `none`, so the `url_mapping` and user tables must exist already — there is no migration tool in this repo.
+Requires a running MySQL instance matching the active profile's `spring.datasource` config (`local` → `localhost:3306/url_shortner`, `dev` → `host.docker.internal:3306/url_shortner`, both `root/root` by default). `spring.jpa.hibernate.ddl-auto` is `none`; schema is managed by Flyway instead.
+
+### Database migrations
+
+Flyway runs automatically on startup for the `local` and `dev` profiles (`spring.flyway.enabled: true`, `spring.flyway.locations: classpath:db/migration`). Migration scripts live in `src/main/resources/db/migration` (`V{n}__description.sql`) and are tracked in the `flyway_schema_history` table. `V1__initial_schema.sql` is written to be idempotent (`CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` / `ADD INDEX IF NOT EXISTS` / `ADD CONSTRAINT IF NOT EXISTS`, which require MySQL 8.0.29+) so it applies cleanly whether the target database already has this schema or is empty.
+
+Tests use H2 with `spring.jpa.hibernate.ddl-auto: create-drop` and explicitly disable Flyway (`spring.flyway.enabled: false` in `application-test.yml`) — MySQL-flavored migration DDL isn't guaranteed to run on H2.
+
+Flyway Community (unlike Teams/Enterprise) has no automatic "undo" migration support, so rollbacks are tracked manually: every new `V{n}__description.sql` added to `db/migration` must be paired with a `V{n}__description_rollback.sql` in `src/main/resources/db/rollback`, containing the inverse DDL. Rollback scripts are never executed by Flyway — see `db/rollback/README.md` for how to apply one by hand.
 
 ### Secrets
 
