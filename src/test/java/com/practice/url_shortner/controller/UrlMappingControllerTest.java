@@ -55,12 +55,11 @@ class UrlMappingControllerTest {
 	}
 
 	@Test
-	void createNewShortUrl_returns403_whenUnauthenticated() throws Exception {
-		// Spring Security's default AuthenticationEntryPoint (no explicit one
-		// configured in SecurityConfig) responds with 403, not 401, for
-		// unauthenticated requests to a protected endpoint.
+	void createNewShortUrl_returns401_whenUnauthenticated() throws Exception {
+		// SecurityConfig's AuthenticationEntryPoint responds with 401 and a JSON error
+		// body for unauthenticated requests to a protected endpoint.
 		mockMvc.perform(post("/api/1/short-url").contentType("application/json")
-				.content("{\"longUrl\":\"https://93.184.216.34/\"}")).andExpect(status().isForbidden());
+				.content("{\"longUrl\":\"https://93.184.216.34/\"}")).andExpect(status().isUnauthorized());
 	}
 
 	@Test

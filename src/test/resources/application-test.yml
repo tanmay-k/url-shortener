@@ -18,4 +18,4 @@ app:
     jwt-secret: test-secret-key-for-unit-tests-only
     jwt-issuer: test-issuer
     jwt-audience: test-audience
-    jwt-validity: 1
+    jwt-validity: 3600

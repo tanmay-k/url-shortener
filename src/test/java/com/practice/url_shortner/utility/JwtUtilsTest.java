@@ -13,11 +13,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 class JwtUtilsTest {
 
-	private static final long TOKEN_VALIDITY_HOURS = 1;
+	private static final long TOKEN_VALIDITY_SECONDS = 3600;
 	// tolerance for clock skew between "now" captured in the test and inside JwtUtils
 	private static final Duration TOLERANCE = Duration.ofSeconds(5);
 
@@ -25,7 +26,7 @@ class JwtUtilsTest {
 
 	@BeforeEach
 	void setUp() {
-		jwtUtils = newJwtUtils("test-secret", "test-issuer", "test-audience", TOKEN_VALIDITY_HOURS);
+		jwtUtils = newJwtUtils("test-secret", "test-issuer", "test-audience", TOKEN_VALIDITY_SECONDS);
 	}
 
 	private JwtUtils newJwtUtils(String secret, String issuer, String audience, long validity) {
@@ -64,9 +65,35 @@ class JwtUtilsTest {
 		String token = jwtUtils.createToken("test-user");
 
 		Instant expiresAt = JWT.decode(token).getExpiresAtAsInstant();
-		Instant expectedExpiry = before.plusSeconds(TOKEN_VALIDITY_HOURS * 3600000);
+		Instant expectedExpiry = before.plusSeconds(TOKEN_VALIDITY_SECONDS);
 
 		assertThat(expiresAt).isCloseTo(expectedExpiry, within(TOLERANCE));
+	}
+
+	@Test
+	void createToken_withExplicitExpiry_usesGivenExpiryAndSameClaims() {
+		Instant expiry = Instant.now().plus(Duration.ofMinutes(10));
+
+		DecodedJWT decoded = JWT.decode(jwtUtils.createToken("test-user", expiry));
+
+		assertThat(decoded.getExpiresAtAsInstant()).isCloseTo(expiry, within(Duration.ofSeconds(1)));
+		assertThat(decoded.getSubject()).isEqualTo("test-user");
+		assertThat(decoded.getIssuer()).isEqualTo("test-issuer");
+		assertThat(decoded.getAudience()).containsExactly("test-audience");
+	}
+
+	@Test
+	void verifyJwt_succeeds_forTokenWithFutureExplicitExpiry() {
+		String token = jwtUtils.createToken("test-user", Instant.now().plus(Duration.ofMinutes(10)));
+
+		assertThat(jwtUtils.verifyJwt(token).getSubject()).isEqualTo("test-user");
+	}
+
+	@Test
+	void verifyJwt_throwsTokenExpired_forTokenWithPastExplicitExpiry() {
+		String token = jwtUtils.createToken("test-user", Instant.now().minus(Duration.ofMinutes(10)));
+
+		assertThatThrownBy(() -> jwtUtils.verifyJwt(token)).isInstanceOf(TokenExpiredException.class);
 	}
 
 	@Test
@@ -82,7 +109,7 @@ class JwtUtilsTest {
 	void verifyJwt_throwsException_forTamperedOrWrongSecretToken() {
 		String token = jwtUtils.createToken("test-user");
 		JwtUtils differentSecretUtils = newJwtUtils("different-secret", "test-issuer", "test-audience",
-				TOKEN_VALIDITY_HOURS);
+				TOKEN_VALIDITY_SECONDS);
 
 		assertThatThrownBy(() -> differentSecretUtils.verifyJwt(token)).isInstanceOf(JWTVerificationException.class);
 	}
@@ -91,7 +118,7 @@ class JwtUtilsTest {
 	void verifyJwt_throwsException_forWrongIssuer() {
 		String token = jwtUtils.createToken("test-user");
 		JwtUtils differentIssuerUtils = newJwtUtils("test-secret", "other-issuer", "test-audience",
-				TOKEN_VALIDITY_HOURS);
+				TOKEN_VALIDITY_SECONDS);
 
 		assertThatThrownBy(() -> differentIssuerUtils.verifyJwt(token)).isInstanceOf(JWTVerificationException.class);
 	}
@@ -100,7 +127,7 @@ class JwtUtilsTest {
 	void verifyJwt_throwsException_forWrongAudience() {
 		String token = jwtUtils.createToken("test-user");
 		JwtUtils differentAudienceUtils = newJwtUtils("test-secret", "test-issuer", "other-audience",
-				TOKEN_VALIDITY_HOURS);
+				TOKEN_VALIDITY_SECONDS);
 
 		assertThatThrownBy(() -> differentAudienceUtils.verifyJwt(token))
 				.isInstanceOf(JWTVerificationException.class);
