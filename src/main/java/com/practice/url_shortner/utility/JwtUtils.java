@@ -25,11 +25,19 @@ public class JwtUtils {
 	private long tokenValidity;
 
 	public String createToken(String userName){
+		return createToken(userName, Instant.now().plusSeconds(tokenValidity));
+	}
+
+	/**
+	 * Creates a token that expires at the given instant instead of the configured
+	 * validity. An instant in the past yields an already-expired token.
+	 */
+	public String createToken(String userName, Instant expiresAt){
 		Algorithm algorithm = Algorithm.HMAC256(jwtSecret);
 		return JWT.create()
 				.withSubject(userName)
 				.withIssuedAt(Instant.now())
-				.withExpiresAt(Instant.now().plusSeconds(tokenValidity * 3600000))
+				.withExpiresAt(expiresAt)
 				.withIssuer(issuer)
 				.withAudience(audience)
 				.sign(algorithm);
