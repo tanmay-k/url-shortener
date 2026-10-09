@@ -74,6 +74,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		if (!Strings.CS.startsWith(header, BEARER_PREFIX)) {
+			log.warn("Authorization header rejected: not a Bearer token");
 			sendUnauthorized(response);
 			return;
 		}
@@ -89,7 +90,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				SecurityContextHolder.getContext().setAuthentication(authentication);
 			}
 		} catch (Exception e) {
-			log.debug("JWT verification failed: {}", e.getMessage());
+			log.warn("JWT verification failed: {}: {}", e.getClass().getSimpleName(), e.getMessage());
 			sendUnauthorized(response);
 			return;
 		}
