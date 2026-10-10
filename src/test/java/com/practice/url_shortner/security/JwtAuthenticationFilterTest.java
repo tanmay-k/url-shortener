@@ -163,7 +163,7 @@ class JwtAuthenticationFilterTest {
 	}
 
 	@Test
-	void doFilterInternal_returns401_whenTokenExpired() throws Exception {
+	void doFilterInternal_returns401SessionExpired_whenTokenExpired() throws Exception {
 		when(request.getHeader("Authorization")).thenReturn("Bearer expired-token");
 		when(jwtUtils.verifyJwt("expired-token"))
 				.thenThrow(new TokenExpiredException("expired", Instant.now().minusSeconds(60)));
@@ -171,8 +171,9 @@ class JwtAuthenticationFilterTest {
 
 		filter.doFilterInternal(request, realResponse, filterChain);
 
-		assertUnauthorizedInvalidToken(realResponse);
+		assertUnauthorized(realResponse, ErrorCode.SESSION_EXPIRED);
 		verify(filterChain, never()).doFilter(any(), any());
+		assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
 	}
 
 	@Test
@@ -189,10 +190,14 @@ class JwtAuthenticationFilterTest {
 	}
 
 	private void assertUnauthorizedInvalidToken(MockHttpServletResponse realResponse) throws Exception {
+		assertUnauthorized(realResponse, ErrorCode.INVALID_TOKEN);
+	}
+
+	private void assertUnauthorized(MockHttpServletResponse realResponse, ErrorCode errorCode) throws Exception {
 		assertThat(realResponse.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
 		assertThat(realResponse.getContentType()).startsWith("application/json");
 		JsonNode body = objectMapper.readTree(realResponse.getContentAsString());
-		assertThat(body.get("errorCode").asText()).isEqualTo(ErrorCode.INVALID_TOKEN.getErrorCode());
-		assertThat(body.get("message").asText()).isEqualTo(ErrorCode.INVALID_TOKEN.getMessage());
+		assertThat(body.get("errorCode").asText()).isEqualTo(errorCode.getErrorCode());
+		assertThat(body.get("message").asText()).isEqualTo(errorCode.getMessage());
 	}
 }

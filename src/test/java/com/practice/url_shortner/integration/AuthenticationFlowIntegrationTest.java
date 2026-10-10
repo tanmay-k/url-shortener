@@ -117,10 +117,10 @@ class AuthenticationFlowIntegrationTest {
 	}
 
 	@Test
-	void protectedEndpoint_returns401InvalidToken_whenTokenExpired() throws Exception {
+	void protectedEndpoint_returns401SessionExpired_whenTokenExpired() throws Exception {
 		String expired = jwtUtils.createToken("someone", Instant.now().minusSeconds(3600));
 
-		assertError(postProtected("Bearer " + expired), ErrorCode.INVALID_TOKEN);
+		assertError(postProtected("Bearer " + expired), ErrorCode.SESSION_EXPIRED);
 	}
 
 	@Test

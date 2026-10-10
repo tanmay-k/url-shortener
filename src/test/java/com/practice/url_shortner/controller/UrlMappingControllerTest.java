@@ -64,12 +64,9 @@ class UrlMappingControllerTest {
 
 	@Test
 	@WithMockUser
-	void createNewShortUrl_returns500_whenBodyFailsSafeUrlValidation() throws Exception {
-		// GlobalExceptionHandler's generic Exception handler catches
-		// MethodArgumentNotValidException too (it has no dedicated handler for
-		// it), mapping @Valid failures to 500 instead of the usual 400. This
-		// pins that current behavior.
+	void createNewShortUrl_returns400_whenBodyFailsSafeUrlValidation() throws Exception {
 		mockMvc.perform(post("/api/1/short-url").contentType("application/json")
-				.content("{\"longUrl\":\"http://192.168.1.10/\"}")).andExpect(status().isInternalServerError());
+				.content("{\"longUrl\":\"http://192.168.1.10/\"}")).andExpect(status().isBadRequest())
+				.andExpect(content().json("{\"errorCode\":\"INVALID_REQUEST\"}"));
 	}
 }

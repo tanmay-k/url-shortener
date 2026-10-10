@@ -35,10 +35,10 @@ public class SafeUrlValidator implements ConstraintValidator<SafeUrl, String> {
 
 			InetAddress inetAddress = InetAddress.getByName(host);
 
-			//			// Block localhost
-			//			if (inetAddress.isLoopbackAddress() || inetAddress.isAnyLocalAddress()) {
-			//				return false;
-			//			}
+			// Block localhost
+			if (inetAddress.isLoopbackAddress() || inetAddress.isAnyLocalAddress()) {
+				return false;
+			}
 
 			// Block private IP ranges
 			if (inetAddress.isSiteLocalAddress()) {
