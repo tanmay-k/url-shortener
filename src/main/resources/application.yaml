@@ -7,11 +7,10 @@ spring:
 
 springdoc:
   show-actuator: true
-  group-configs:
-    - group: v1
-      paths-to-match: /api/1/**
 
 app:
+  openapi:
+    server-url: ${OPENAPI_SERVER_URL:http://localhost:8080}
   security:
     jwt-secret: ${JWT_SECRET}
     jwt-issuer: ${JWT_ISSUER:tanmay@localhost}

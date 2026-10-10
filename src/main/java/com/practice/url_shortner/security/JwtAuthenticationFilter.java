@@ -11,6 +11,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.url_shortner.constants.ErrorCode;
@@ -53,14 +54,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	 * deliberate: public endpoints that carry no token (login, logout, user
 	 * sign-up) run through this filter too and must keep working. Rejecting
 	 * unauthenticated requests to protected routes is the job of
-	 * {@code SecurityConfig}'s {@code anyRequest().authenticated()} rule, so
-	 * every new route must be reviewed against that configuration.</li>
+	 * {@code SecurityConfig}'s {@code anyRequest().authenticated()} rule, so every
+	 * new route must be reviewed against that configuration.</li>
 	 * <li><b>Header present but not {@code Bearer <token>}, or token invalid or
 	 * expired:</b> the request is rejected here with 401 and a JSON
 	 * {@link ErrorResponse}. This applies to public endpoints as well, so a stray
 	 * malformed {@code Authorization} header on login will get 401.</li>
-	 * <li><b>Valid token:</b> the user is placed on the {@code SecurityContext}
-	 * and the chain continues.</li>
+	 * <li><b>Valid token:</b> the user is placed on the {@code SecurityContext} and
+	 * the chain continues.</li>
 	 * </ul>
 	 */
 	@Override
@@ -75,7 +76,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		if (!Strings.CS.startsWith(header, BEARER_PREFIX)) {
 			log.warn("Authorization header rejected: not a Bearer token");
-			sendUnauthorized(response);
+			sendInvalidToken(response);
 			return;
 		}
 
@@ -84,26 +85,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			DecodedJWT decodedJWT = jwtUtils.verifyJwt(token);
 			String userName = decodedJWT.getSubject();
 			if (StringUtils.isNotEmpty(userName)) {
-				var authentication = new UsernamePasswordAuthenticationToken(userName, null,
-						Collections.emptyList());
+				var authentication = new UsernamePasswordAuthenticationToken(userName, null, Collections.emptyList());
 				authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 				SecurityContextHolder.getContext().setAuthentication(authentication);
 			}
+		} catch (TokenExpiredException e) {
+			log.warn("Rejecting expired JWT token. {}", e.toString());
+			sendExpiredToken(response);
+			return;
 		} catch (Exception e) {
 			log.warn("JWT verification failed: {}", e.toString());
-			sendUnauthorized(response);
+			sendInvalidToken(response);
 			return;
 		}
 
 		filterChain.doFilter(request, response);
 	}
 
-	private void sendUnauthorized(HttpServletResponse response) throws IOException {
-		response.setStatus(ErrorCode.INVALID_TOKEN.getDefaultHttpStatus().value());
+	private void sendInvalidToken(HttpServletResponse response) throws IOException {
+		sendResponse(response, ErrorCode.INVALID_TOKEN);
+	}
+
+	private void sendExpiredToken(HttpServletResponse response) throws IOException {
+		sendResponse(response, ErrorCode.SESSION_EXPIRED);
+	}
+
+	private void sendResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {
+		response.setStatus(errorCode.getDefaultHttpStatus().value());
 		response.setContentType("application/json");
-		ErrorResponse body = ErrorResponse.builder()
-				.errorCode(ErrorCode.INVALID_TOKEN.getErrorCode())
-				.message(ErrorCode.INVALID_TOKEN.getMessage())
+		ErrorResponse body = ErrorResponse.builder().errorCode(errorCode.getErrorCode()).message(errorCode.getMessage())
 				.build();
 		response.getWriter().write(objectMapper.writeValueAsString(body));
 	}

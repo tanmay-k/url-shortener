@@ -1,8 +1,8 @@
 package com.practice.url_shortner.exception_handler;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -19,27 +19,30 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(exception = CustomException.class)
 	ResponseEntity<ErrorResponse> handleApplicationException(CustomException exception) {
 		log.error("Request failed with exception.", exception);
-		return new ResponseEntity<ErrorResponse>(
-				ErrorResponse.builder().errorCode(exception.getErrorCode().getErrorCode())
-				.message(exception.getErrorCode().getMessage()).build(),
-				exception.getErrorCode().getDefaultHttpStatus());
+		return buildResponse(exception.getErrorCode());
 	}
 
 	@ExceptionHandler(exception = Exception.class)
 	ResponseEntity<ErrorResponse> handleException(Exception exception){
 		log.error("Something went wrong.", exception);
-		return new ResponseEntity<ErrorResponse>(
-				ErrorResponse.builder().errorCode(ErrorCode.INTERNAL_SERVER_ERROR.getErrorCode())
-				.message(ErrorCode.INTERNAL_SERVER_ERROR.getMessage()).build(),
-				HttpStatus.INTERNAL_SERVER_ERROR);
+		return buildResponse(ErrorCode.INTERNAL_SERVER_ERROR);
+	}
+
+	@ExceptionHandler(exception = MethodArgumentNotValidException.class)
+	ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException exception) {
+		log.info("Request validation failed: {}", exception.getMessage());
+		return buildResponse(ErrorCode.INVALID_REQUEST);
 	}
 
 	@ExceptionHandler(exception = BadCredentialsException.class)
 	ResponseEntity<ErrorResponse> handlerBadCredentialsException(BadCredentialsException badCredsException){
 		log.info("User authentication failed");
-		return new ResponseEntity<ErrorResponse>(
-				ErrorResponse.builder().errorCode(ErrorCode.INVALID_CREDENTIALS.getErrorCode())
-						.message(ErrorCode.INVALID_CREDENTIALS.getMessage()).build(),
-				ErrorCode.INVALID_CREDENTIALS.getDefaultHttpStatus());
+		return buildResponse(ErrorCode.INVALID_CREDENTIALS);
+	}
+
+	private static ResponseEntity<ErrorResponse> buildResponse(ErrorCode errorCode) {
+		return new ResponseEntity<>(
+				ErrorResponse.builder().errorCode(errorCode.getErrorCode()).message(errorCode.getMessage()).build(),
+				errorCode.getDefaultHttpStatus());
 	}
 }

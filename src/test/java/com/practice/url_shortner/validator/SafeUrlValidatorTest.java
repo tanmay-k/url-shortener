@@ -45,11 +45,9 @@ class SafeUrlValidatorTest {
 	}
 
 	@Test
-	void isValid_returnsTrue_forLoopbackHostLiteral() {
-		// The loopback/any-local block in SafeUrlValidator is currently commented
-		// out, so loopback addresses pass validation today. This test pins that
-		// current behavior.
-		assertThat(validator.isValid("http://127.0.0.1/", null)).isTrue();
+	void isValid_returnsFalse_forLoopbackAndAnyLocalHostLiterals() {
+		assertThat(validator.isValid("http://127.0.0.1/", null)).isFalse();
+		assertThat(validator.isValid("http://0.0.0.0/", null)).isFalse();
 	}
 
 	@Test

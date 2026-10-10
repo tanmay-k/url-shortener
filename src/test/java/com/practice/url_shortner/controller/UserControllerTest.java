@@ -67,6 +67,20 @@ class UserControllerTest {
 	}
 
 	@Test
+	void login_returns400_whenCredentialsBlank() throws Exception {
+		mockMvc.perform(post("/api/1/login").contentType("application/json")
+				.content("{\"userName\":\"\",\"password\":\"test-password\"}")).andExpect(status().isBadRequest())
+				.andExpect(content().json("{\"errorCode\":\"" + ErrorCode.INVALID_REQUEST.getErrorCode() + "\"}"));
+	}
+
+	@Test
+	void createUser_returns400_whenPasswordMissing() throws Exception {
+		mockMvc.perform(post("/api/1/user").contentType("application/json").content("{\"userName\":\"test-user\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(content().json("{\"errorCode\":\"" + ErrorCode.INVALID_REQUEST.getErrorCode() + "\"}"));
+	}
+
+	@Test
 	void createUser_returns204_onSuccess() throws Exception {
 		when(passwordEncoder.encode("test-password")).thenReturn("encoded-password");
 
