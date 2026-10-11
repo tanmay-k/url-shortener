@@ -23,6 +23,7 @@ public class UserEntity {
 
 	private @Nullable String password;
 
+	@Column(unique = true)
 	private String username;
 
 	//	private Set<GrantedAuthority> authorities
