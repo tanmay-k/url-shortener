@@ -4,14 +4,13 @@ import java.time.LocalDateTime;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.Nullable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsPasswordService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.practice.url_shortner.constants.ErrorCode;
@@ -57,7 +56,7 @@ public class UserDetailsManagerImpl implements UserDetailsManager, UserDetailsPa
 	}
 
 	@Override
-	@Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRED)
+	@Transactional
 	public void createUser(UserDetails user) {
 		log.debug("Request received to create new user: {}", user.getUsername());
 		if (StringUtils.isAnyBlank(user.getUsername(), user.getPassword())) {
@@ -80,7 +79,15 @@ public class UserDetailsManagerImpl implements UserDetailsManager, UserDetailsPa
 		userEntity.setCredentialsNonExpired(true);
 		userEntity.setEnabled(true);
 
-		UserEntity savedEntity = userRepository.save(userEntity);
+		// The pre-check above is only a fast path; the unique index on users.username is the real guarantee
+		// against concurrent registrations. Flush so a violation is thrown here instead of at commit.
+		UserEntity savedEntity;
+		try {
+			savedEntity = userRepository.saveAndFlush(userEntity);
+		} catch (DataIntegrityViolationException e) {
+			log.info("User with name {} already exists (detected by unique constraint).", user.getUsername());
+			throw CustomException.builder().errorCode(ErrorCode.USER_NAME_NOT_AVAILABLE).build();
+		}
 		log.debug("User {} created with id {}.", user.getUsername(), savedEntity.getId());
 	}
 

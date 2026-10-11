@@ -80,12 +80,12 @@ class UserDetailsManagerImplTest {
 		mappedEntity.setUsername("test-user");
 		mappedEntity.setPassword("encoded-password");
 		when(userDetailsToUserMapper.convert(user)).thenReturn(mappedEntity);
-		when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(userRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		userDetailsManager.createUser(user);
 
 		org.mockito.ArgumentCaptor<UserEntity> captor = org.mockito.ArgumentCaptor.forClass(UserEntity.class);
-		verify(userRepository).save(captor.capture());
+		verify(userRepository).saveAndFlush(captor.capture());
 		UserEntity saved = captor.getValue();
 		assertThat(saved.isAccountNonExpired()).isTrue();
 		assertThat(saved.isAccountNonLocked()).isTrue();
@@ -106,6 +106,19 @@ class UserDetailsManagerImplTest {
 	void createUser_throwsCustomExceptionUserNameNotAvailable_whenUserExists() {
 		User user = new User("test-user", "encoded-password", java.util.Collections.emptyList());
 		when(userRepository.userExists("test-user")).thenReturn(true);
+
+		assertThatThrownBy(() -> userDetailsManager.createUser(user)).isInstanceOf(CustomException.class)
+				.extracting(ex -> ((CustomException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.USER_NAME_NOT_AVAILABLE);
+	}
+
+	@Test
+	void createUser_throwsCustomExceptionUserNameNotAvailable_whenUniqueConstraintViolated() {
+		User user = new User("test-user", "encoded-password", java.util.Collections.emptyList());
+		when(userRepository.userExists("test-user")).thenReturn(false);
+		when(userDetailsToUserMapper.convert(user)).thenReturn(new UserEntity());
+		when(userRepository.saveAndFlush(any(UserEntity.class)))
+				.thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate"));
 
 		assertThatThrownBy(() -> userDetailsManager.createUser(user)).isInstanceOf(CustomException.class)
 				.extracting(ex -> ((CustomException) ex).getErrorCode())
