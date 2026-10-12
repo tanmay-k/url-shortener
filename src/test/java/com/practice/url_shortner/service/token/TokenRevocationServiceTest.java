@@ -52,13 +52,6 @@ class TokenRevocationServiceTest {
 	}
 
 	@Test
-	void revoke_doesNothing_whenTokenHasNoJti() {
-		service.revoke(token(null, null));
-
-		verify(revokedTokenRepository, never()).save(any());
-	}
-
-	@Test
 	void revoke_doesNotSaveAgain_whenAlreadyRevoked() {
 		when(revokedTokenRepository.existsById("jti-1")).thenReturn(true);
 

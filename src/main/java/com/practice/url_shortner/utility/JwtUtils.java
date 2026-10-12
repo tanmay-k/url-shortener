@@ -50,6 +50,7 @@ public class JwtUtils {
 		JWTVerifier verifier = JWT.require(algorithm)
 				.withIssuer(issuer)
 				.withAudience(audience)
+				.withClaimPresence("jti")
 				.acceptExpiresAt(0)
 				.build();
 		return verifier.verify(token);

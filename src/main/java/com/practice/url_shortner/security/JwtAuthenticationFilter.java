@@ -63,7 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	 * {@link ErrorResponse}. This applies to public endpoints as well, so a stray
 	 * malformed {@code Authorization} header on login will get 401.</li>
 	 * <li><b>Token revoked (logged out):</b> rejected with 401
-	 * {@code TOKEN_REVOKED}.</li>
+	 * {@code AUTHENTICATION_REQUIRED}.</li>
 	 * <li><b>Valid token:</b> the user is placed on the {@code SecurityContext} and
 	 * the chain continues.</li>
 	 * </ul>
@@ -88,10 +88,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			String token = StringUtils.substring(header, BEARER_PREFIX.length());
 			DecodedJWT decodedJWT = jwtUtils.verifyJwt(token);
 			String jti = decodedJWT.getId();
-			// Tokens issued before revocation support carry no jti and cannot be revoked.
-			if (StringUtils.isNotBlank(jti) && tokenRevocationService.isRevoked(jti)) {
+			if (tokenRevocationService.isRevoked(jti)) {
 				log.warn("Rejecting revoked JWT token {}", jti);
-				sendResponse(response, ErrorCode.TOKEN_REVOKED);
+				sendResponse(response, ErrorCode.AUTHENTICATION_REQUIRED);
 				return;
 			}
 			String userName = decodedJWT.getSubject();

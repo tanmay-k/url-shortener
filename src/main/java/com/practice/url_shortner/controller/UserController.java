@@ -2,7 +2,7 @@ package com.practice.url_shortner.controller;
 
 import java.util.Collections;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,12 +52,12 @@ public class UserController {
 
 	@Operation(summary = "Log out", description = "Revokes the JWT sent in the Authorization header. The token is rejected from then on, even though it has not expired yet.")
 	@ApiResponse(responseCode = "204", description = "Token revoked")
-	@ApiErrors({ ErrorCode.AUTHENTICATION_REQUIRED, ErrorCode.INVALID_TOKEN, ErrorCode.TOKEN_REVOKED,
+	@ApiErrors({ ErrorCode.AUTHENTICATION_REQUIRED, ErrorCode.INVALID_TOKEN,
 			ErrorCode.SESSION_EXPIRED })
 	@PostMapping("/logout")
 	public ResponseEntity<Void> logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
 		// JwtAuthenticationFilter has already validated the header and token.
-		userService.logout(StringUtils.removeStart(authorization, "Bearer "));
+		userService.logout(Strings.CS.removeStart(authorization, "Bearer "));
 		return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
 	}
 

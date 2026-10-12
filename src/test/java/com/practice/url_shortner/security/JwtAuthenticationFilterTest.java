@@ -194,7 +194,7 @@ class JwtAuthenticationFilterTest {
 	}
 
 	@Test
-	void doFilterInternal_returns401TokenRevoked_whenJtiIsOnDenylist() throws Exception {
+	void doFilterInternal_returns401AuthenticationRequired_whenJtiIsOnDenylist() throws Exception {
 		when(request.getHeader("Authorization")).thenReturn("Bearer revoked-token");
 		DecodedJWT decodedJWT = mock(DecodedJWT.class);
 		when(decodedJWT.getId()).thenReturn("revoked-jti");
@@ -204,23 +204,9 @@ class JwtAuthenticationFilterTest {
 
 		filter.doFilterInternal(request, realResponse, filterChain);
 
-		assertUnauthorized(realResponse, ErrorCode.TOKEN_REVOKED);
+		assertUnauthorized(realResponse, ErrorCode.AUTHENTICATION_REQUIRED);
 		verify(filterChain, never()).doFilter(any(), any());
 		assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-	}
-
-	@Test
-	void doFilterInternal_skipsDenylistCheck_whenTokenHasNoJti() throws Exception {
-		when(request.getHeader("Authorization")).thenReturn("Bearer legacy-token");
-		DecodedJWT decodedJWT = mock(DecodedJWT.class);
-		when(decodedJWT.getId()).thenReturn(null);
-		when(decodedJWT.getSubject()).thenReturn("test-user");
-		when(jwtUtils.verifyJwt("legacy-token")).thenReturn(decodedJWT);
-
-		filter.doFilterInternal(request, response, filterChain);
-
-		verifyNoInteractions(tokenRevocationService);
-		verify(filterChain).doFilter(request, response);
 	}
 
 	private void assertUnauthorizedInvalidToken(MockHttpServletResponse realResponse) throws Exception {

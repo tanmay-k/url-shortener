@@ -117,6 +117,14 @@ class AuthenticationFlowIntegrationTest {
 	}
 
 	@Test
+	void protectedEndpoint_returns401InvalidToken_whenTokenHasNoJti() throws Exception {
+		String noJti = JWT.create().withSubject("someone").withIssuer(jwtIssuer).withAudience(jwtAudience)
+				.withExpiresAt(Instant.now().plusSeconds(600)).sign(Algorithm.HMAC256(jwtSecret));
+
+		assertError(postProtected("Bearer " + noJti), ErrorCode.INVALID_TOKEN);
+	}
+
+	@Test
 	void protectedEndpoint_returns401SessionExpired_whenTokenExpired() throws Exception {
 		String expired = jwtUtils.createToken("someone", Instant.now().minusSeconds(3600));
 
@@ -181,9 +189,9 @@ class AuthenticationFlowIntegrationTest {
 		mockMvc.perform(post("/api/1/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isNoContent());
 
-		assertError(postProtected("Bearer " + token), ErrorCode.TOKEN_REVOKED);
+		assertError(postProtected("Bearer " + token), ErrorCode.AUTHENTICATION_REQUIRED);
 		assertError(mockMvc.perform(post("/api/1/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)),
-				ErrorCode.TOKEN_REVOKED);
+				ErrorCode.AUTHENTICATION_REQUIRED);
 	}
 
 	@Test

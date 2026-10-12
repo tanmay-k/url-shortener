@@ -5,9 +5,8 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 public interface ITokenRevocationService {
 
 	/**
-	 * Denylists the token until it would have expired anyway. Revoking a token that
-	 * has no {@code jti} (issued before revocation support) is a no-op, and
-	 * revoking the same token twice is harmless.
+	 * Denylists the token (which must carry a {@code jti}) until it would have
+	 * expired anyway. Revoking the same token twice is harmless.
 	 */
 	void revoke(DecodedJWT token);
 

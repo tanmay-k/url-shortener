@@ -2,7 +2,6 @@ package com.practice.url_shortner.service.token;
 
 import java.time.Instant;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,10 +24,6 @@ public class TokenRevocationService implements ITokenRevocationService {
 	@Override
 	public void revoke(DecodedJWT token) {
 		String jti = token.getId();
-		if (StringUtils.isBlank(jti)) {
-			log.info("Token has no jti, so it cannot be revoked. It will expire on its own.");
-			return;
-		}
 		if (revokedTokenRepository.existsById(jti)) {
 			return;
 		}
