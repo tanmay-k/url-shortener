@@ -25,7 +25,9 @@ import com.practice.url_shortner.configuration.AppConfiguration;
 import com.practice.url_shortner.security.JwtAuthenticationFilter;
 import com.practice.url_shortner.security.RateLimitingFilter;
 import com.practice.url_shortner.security.SecurityConfig;
+import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.service.user.IUserService;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.practice.url_shortner.utility.JwtUtils;
 
 @WebMvcTest(UserController.class)
@@ -46,6 +48,9 @@ class UserControllerTest {
 
 	@MockitoBean
 	private JwtUtils jwtUtils;
+
+	@MockitoBean
+	private ITokenRevocationService tokenRevocationService;
 
 	@Test
 	void login_returns200WithTokenBody_onSuccessfulAuthentication() throws Exception {
@@ -71,6 +76,26 @@ class UserControllerTest {
 		mockMvc.perform(post("/api/1/login").contentType("application/json")
 				.content("{\"userName\":\"\",\"password\":\"test-password\"}")).andExpect(status().isBadRequest())
 				.andExpect(content().json("{\"errorCode\":\"" + ErrorCode.INVALID_REQUEST.getErrorCode() + "\"}"));
+	}
+
+	@Test
+	void logout_returns204AndRevokesToken_whenTokenValid() throws Exception {
+		DecodedJWT decodedJWT = org.mockito.Mockito.mock(DecodedJWT.class);
+		when(decodedJWT.getSubject()).thenReturn("test-user");
+		when(jwtUtils.verifyJwt("a-token")).thenReturn(decodedJWT);
+
+		mockMvc.perform(post("/api/1/logout").header("Authorization", "Bearer a-token"))
+				.andExpect(status().isNoContent());
+
+		verify(userService).logout("a-token");
+	}
+
+	@Test
+	void logout_returns401_whenNoAuthorizationHeader() throws Exception {
+		mockMvc.perform(post("/api/1/logout")).andExpect(status().isUnauthorized()).andExpect(content()
+				.json("{\"errorCode\":\"" + ErrorCode.AUTHENTICATION_REQUIRED.getErrorCode() + "\"}"));
+
+		org.mockito.Mockito.verifyNoInteractions(userService);
 	}
 
 	@Test

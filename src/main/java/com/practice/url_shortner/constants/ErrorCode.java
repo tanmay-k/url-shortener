@@ -12,6 +12,7 @@ public enum ErrorCode {
 	INVALID_CREDENTIALS("INVALID_CREDENTIALS", "Invalid credentials provided.", HttpStatus.UNAUTHORIZED),
 	AUTHENTICATION_REQUIRED("AUTHENTICATION_REQUIRED", "Authentication is required to access this resource.", HttpStatus.UNAUTHORIZED),
 	INVALID_TOKEN("INVALID_TOKEN", "Invalid or malformed authentication token.", HttpStatus.UNAUTHORIZED),
+	TOKEN_REVOKED("TOKEN_REVOKED", "This token has been revoked. Log in again to continue.", HttpStatus.UNAUTHORIZED),
 	SESSION_EXPIRED("SESSION_EXPIRED", "Your session is expired. Log in again to continue.", HttpStatus.UNAUTHORIZED),
 	USER_NAME_NOT_AVAILABLE("USER_NAME_NOT_AVAILABLE", "The username is already taken.", HttpStatus.BAD_REQUEST),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "Something went wrong.", HttpStatus.INTERNAL_SERVER_ERROR),

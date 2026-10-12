@@ -163,13 +163,40 @@ class AuthenticationFlowIntegrationTest {
 				ErrorCode.INVALID_CREDENTIALS);
 	}
 
+	// ---- Logout / token revocation ----
+
 	@Test
-	void logoutPath_isNotBlockedBySecurity_whenNoAuthorizationHeader() throws Exception {
-		// No controller handles logout yet, so the response status is whatever the app
-		// does for an unmapped route (currently a 500 via the generic exception
-		// handler). What matters here is that security does not reject it with 401/403.
-		int statusCode = mockMvc.perform(post("/api/1/logout")).andReturn().getResponse().getStatus();
-		assertThat(statusCode).isNotIn(401, 403);
+	void logout_returns401AuthenticationRequired_whenNoAuthorizationHeader() throws Exception {
+		assertError(mockMvc.perform(post("/api/1/logout")), ErrorCode.AUTHENTICATION_REQUIRED);
+	}
+
+	@Test
+	void logout_revokesToken_soItIsRejectedAfterwards() throws Exception {
+		String userName = uniqueUserName();
+		register(userName, "password123");
+		String token = jwtUtils.createToken(userName);
+
+		postProtected("Bearer " + token).andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/1/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isNoContent());
+
+		assertError(postProtected("Bearer " + token), ErrorCode.TOKEN_REVOKED);
+		assertError(mockMvc.perform(post("/api/1/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)),
+				ErrorCode.TOKEN_REVOKED);
+	}
+
+	@Test
+	void logout_doesNotAffectOtherTokensOfTheSameUser() throws Exception {
+		String userName = uniqueUserName();
+		register(userName, "password123");
+		String loggedOut = jwtUtils.createToken(userName);
+		String otherSession = jwtUtils.createToken(userName);
+
+		mockMvc.perform(post("/api/1/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + loggedOut))
+				.andExpect(status().isNoContent());
+
+		postProtected("Bearer " + otherSession).andExpect(status().isOk());
 	}
 
 	@Test

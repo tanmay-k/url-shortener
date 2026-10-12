@@ -2,6 +2,8 @@ package com.practice.url_shortner.controller;
 
 import java.util.Collections;
 
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.User;
@@ -9,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,6 +48,17 @@ public class UserController {
 	@PostMapping("/login")
 	public AuthenticationResponseRecord login(@Valid @RequestBody AuthenticationRequestRecord credentials) {
 		return userService.login(credentials);
+	}
+
+	@Operation(summary = "Log out", description = "Revokes the JWT sent in the Authorization header. The token is rejected from then on, even though it has not expired yet.")
+	@ApiResponse(responseCode = "204", description = "Token revoked")
+	@ApiErrors({ ErrorCode.AUTHENTICATION_REQUIRED, ErrorCode.INVALID_TOKEN, ErrorCode.TOKEN_REVOKED,
+			ErrorCode.SESSION_EXPIRED })
+	@PostMapping("/logout")
+	public ResponseEntity<Void> logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+		// JwtAuthenticationFilter has already validated the header and token.
+		userService.logout(StringUtils.removeStart(authorization, "Bearer "));
+		return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
 	}
 
 	@Operation(summary = "Register a user", description = "Creates a new user account.")

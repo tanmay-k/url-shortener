@@ -16,6 +16,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.model.ErrorResponse;
+import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.utility.JwtUtils;
 
 import jakarta.servlet.FilterChain;
@@ -34,6 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtUtils jwtUtils;
 	private final ObjectMapper objectMapper;
+	private final ITokenRevocationService tokenRevocationService;
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
@@ -51,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	 * <ul>
 	 * <li><b>No Authorization header (missing or blank):</b> the request is passed
 	 * through untouched, with no authentication set and no rejection. This is
-	 * deliberate: public endpoints that carry no token (login, logout, user
+	 * deliberate: public endpoints that carry no token (login, user
 	 * sign-up) run through this filter too and must keep working. Rejecting
 	 * unauthenticated requests to protected routes is the job of
 	 * {@code SecurityConfig}'s {@code anyRequest().authenticated()} rule, so every
@@ -60,6 +62,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	 * expired:</b> the request is rejected here with 401 and a JSON
 	 * {@link ErrorResponse}. This applies to public endpoints as well, so a stray
 	 * malformed {@code Authorization} header on login will get 401.</li>
+	 * <li><b>Token revoked (logged out):</b> rejected with 401
+	 * {@code TOKEN_REVOKED}.</li>
 	 * <li><b>Valid token:</b> the user is placed on the {@code SecurityContext} and
 	 * the chain continues.</li>
 	 * </ul>
@@ -83,6 +87,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		try {
 			String token = StringUtils.substring(header, BEARER_PREFIX.length());
 			DecodedJWT decodedJWT = jwtUtils.verifyJwt(token);
+			String jti = decodedJWT.getId();
+			// Tokens issued before revocation support carry no jti and cannot be revoked.
+			if (StringUtils.isNotBlank(jti) && tokenRevocationService.isRevoked(jti)) {
+				log.warn("Rejecting revoked JWT token {}", jti);
+				sendResponse(response, ErrorCode.TOKEN_REVOKED);
+				return;
+			}
 			String userName = decodedJWT.getSubject();
 			if (StringUtils.isNotEmpty(userName)) {
 				var authentication = new UsernamePasswordAuthenticationToken(userName, null, Collections.emptyList());

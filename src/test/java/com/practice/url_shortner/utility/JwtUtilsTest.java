@@ -49,6 +49,15 @@ class JwtUtilsTest {
 	}
 
 	@Test
+	void createToken_assignsUniqueJtiToEachToken() {
+		String first = JWT.decode(jwtUtils.createToken("test-user")).getId();
+		String second = JWT.decode(jwtUtils.createToken("test-user")).getId();
+
+		assertThat(first).isNotBlank();
+		assertThat(second).isNotBlank().isNotEqualTo(first);
+	}
+
+	@Test
 	void createToken_issuedAtIsWithinToleranceWindow() {
 		Instant before = Instant.now();
 		String token = jwtUtils.createToken("test-user");
