@@ -36,7 +36,7 @@ jobs:
         run: ./mvnw -B --no-transfer-progress verify
 
       - name: Publish JUnit results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3
         if: ${{ !cancelled() }}
         with:
           name: JUnit results
