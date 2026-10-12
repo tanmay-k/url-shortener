@@ -42,6 +42,7 @@ jobs:
           name: JUnit results
           path: target/surefire-reports/TEST-*.xml
           reporter: java-junit
+          use-actions-summary: false # create a dedicated check run (with failure annotations)
 
       - name: Coverage summary
         if: ${{ !cancelled() }}
