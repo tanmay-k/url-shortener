@@ -43,7 +43,7 @@ public class TokenRevocationService implements ITokenRevocationService {
 
 	@Override
 	@Transactional
-	@Scheduled(fixedDelayString = "${app.security.revocation-cleanup-interval:PT15M}")
+	@Scheduled(fixedDelayString = "${app.security.revocation-cleanup-interval:PT15M}", initialDelayString = "${app.security.revocation-cleanup-interval:PT15M}")
 	public int purgeExpired() {
 		int deleted = revokedTokenRepository.deleteExpiredBefore(Instant.now());
 		if (deleted > 0) {
