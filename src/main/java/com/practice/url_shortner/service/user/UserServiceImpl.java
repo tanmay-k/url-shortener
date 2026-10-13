@@ -12,6 +12,8 @@ import com.practice.url_shortner.exception.CustomException;
 import com.practice.url_shortner.model.AuthenticationRequestRecord;
 import com.practice.url_shortner.model.AuthenticationResponseRecord;
 import com.practice.url_shortner.repository.IUserRepository;
+import com.practice.url_shortner.service.token.IRefreshTokenService;
+import com.practice.url_shortner.service.token.IRefreshTokenService.IssuedSession;
 import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.utility.JwtUtils;
 
@@ -29,6 +31,8 @@ public class UserServiceImpl implements IUserService {
 
 	private final ITokenRevocationService tokenRevocationService;
 
+	private final IRefreshTokenService refreshTokenService;
+
 	private IUserRepository userRepository;
 
 	@Override
@@ -37,15 +41,29 @@ public class UserServiceImpl implements IUserService {
 		authenticationManager.authenticate(
 				new UsernamePasswordAuthenticationToken(credentials.userName(), credentials.password()));
 		log.debug("Authentication successful for user {}", credentials.userName());
-		String token = jwtUtils.createToken(credentials.userName());
-		log.info("New token issued to user {}. The token is {}", credentials.userName(), token);
-		return new AuthenticationResponseRecord(token, null);
+		IssuedSession session = refreshTokenService.startSession(credentials.userName());
+		log.info("New session started for user {}.", credentials.userName());
+		return toResponse(session);
+	}
+
+	@Override
+	public AuthenticationResponseRecord refresh(String refreshToken) {
+		IssuedSession session = refreshTokenService.rotate(refreshToken);
+		log.info("Session refreshed for user {}.", session.userName());
+		return toResponse(session);
+	}
+
+	private AuthenticationResponseRecord toResponse(IssuedSession session) {
+		String token = jwtUtils.createToken(session.userName(), session.accessJti());
+		return new AuthenticationResponseRecord(token, session.refreshToken(),
+				jwtUtils.accessTokenValidity().toSeconds());
 	}
 
 	@Override
 	public void logout(String token) {
 		DecodedJWT decodedJWT = jwtUtils.verifyJwt(token);
 		tokenRevocationService.revoke(decodedJWT);
+		refreshTokenService.revokeSessionByAccessJti(decodedJWT.getId());
 		log.info("User {} logged out.", decodedJWT.getSubject());
 	}
 

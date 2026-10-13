@@ -15,7 +15,9 @@ app:
     jwt-secret: ${JWT_SECRET}
     jwt-issuer: ${JWT_ISSUER:tanmay@localhost}
     jwt-audience: ${JWT_AUDIENCE:url_shortner}
-    jwt_validity: ${JWT_VALIDITY:3600}
+    jwt_validity: ${JWT_VALIDITY:900}
+    refresh-token-validity: ${REFRESH_TOKEN_VALIDITY:P7D}
+    max-sessions-per-user: ${MAX_SESSIONS_PER_USER:2}
   rate-limit:
     login-requests-per-minute: 5
     registration-requests-per-minute: 5

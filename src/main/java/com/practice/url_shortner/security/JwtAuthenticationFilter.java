@@ -44,7 +44,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		// Skip JWT validation if the request is trying to hit the base redirect path
 		// This ensures a 1-character or multi-character shortcode doesn't trigger the
 		// filter
-		return "GET".equals(request.getMethod()) && !path.startsWith("/api/");
+		if ("GET".equals(request.getMethod()) && !path.startsWith("/api/")) {
+			return true;
+		}
+
+		// The access token a client is refreshing has usually expired; it must not
+		// get the request rejected before the refresh token is even looked at.
+		// Matched on the request URI because MockMvc leaves the servlet path empty.
+		return "POST".equals(request.getMethod()) && request.getRequestURI().matches("(/.*)?/api/[^/]+/token/refresh");
 	}
 
 	/**

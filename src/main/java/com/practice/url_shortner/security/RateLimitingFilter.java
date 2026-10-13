@@ -80,7 +80,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 	}
 
 	private Integer getLimitForRequest(String method, String path) {
-		if ("POST".equals(method) && path.matches("/api/[^/]+/login")) {
+		if ("POST".equals(method) && (path.matches("/api/[^/]+/login") || path.matches("/api/[^/]+/token/refresh"))) {
 			return rateLimitProperties.loginRequestsPerMinute();
 		}
 		if ("POST".equals(method) && path.matches("/api/[^/]+/user")) {

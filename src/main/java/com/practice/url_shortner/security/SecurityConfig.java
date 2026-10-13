@@ -20,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.url_shortner.configuration.RateLimitProperties;
+import com.practice.url_shortner.configuration.RefreshTokenProperties;
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.model.ErrorResponse;
 
@@ -28,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableConfigurationProperties(RateLimitProperties.class)
+@EnableConfigurationProperties({ RateLimitProperties.class, RefreshTokenProperties.class })
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -76,6 +77,7 @@ public class SecurityConfig {
 						sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.exceptionHandling(eh -> eh.authenticationEntryPoint(authenticationEntryPoint))
 				.authorizeHttpRequests(auth -> auth.requestMatchers("/api/*/login").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/*/token/refresh").permitAll()
 						.requestMatchers(HttpMethod.GET, "/{shortCode:[a-zA-Z0-9]{6,10}}").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/*/user").permitAll()
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
