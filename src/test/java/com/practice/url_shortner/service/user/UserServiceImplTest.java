@@ -23,7 +23,9 @@ import com.practice.url_shortner.exception.CustomException;
 import com.practice.url_shortner.model.AuthenticationRequestRecord;
 import com.practice.url_shortner.model.AuthenticationResponseRecord;
 import com.practice.url_shortner.repository.IUserRepository;
+import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.utility.JwtUtils;
+import com.auth0.jwt.interfaces.DecodedJWT;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
@@ -34,11 +36,14 @@ class UserServiceImplTest {
 	@Mock
 	private JwtUtils jwtUtils;
 
+	@Mock
+	private ITokenRevocationService tokenRevocationService;
+
 	private UserServiceImpl userService;
 
 	@org.junit.jupiter.api.BeforeEach
 	void setUp() {
-		userService = new UserServiceImpl(authenticationManager, jwtUtils);
+		userService = new UserServiceImpl(authenticationManager, jwtUtils, tokenRevocationService);
 	}
 
 	@Test
@@ -72,6 +77,16 @@ class UserServiceImplTest {
 		verify(authenticationManager).authenticate(captor.capture());
 		assertThat(captor.getValue().getPrincipal()).isEqualTo("test-user");
 		assertThat(captor.getValue().getCredentials()).isEqualTo("test-password");
+	}
+
+	@Test
+	void logout_revokesTheVerifiedToken() {
+		DecodedJWT decodedJWT = org.mockito.Mockito.mock(DecodedJWT.class);
+		when(jwtUtils.verifyJwt("a-token")).thenReturn(decodedJWT);
+
+		userService.logout("a-token");
+
+		verify(tokenRevocationService).revoke(decodedJWT);
 	}
 
 	@Test

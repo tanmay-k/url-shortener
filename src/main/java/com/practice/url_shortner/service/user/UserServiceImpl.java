@@ -5,12 +5,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.entity.UserEntity;
 import com.practice.url_shortner.exception.CustomException;
 import com.practice.url_shortner.model.AuthenticationRequestRecord;
 import com.practice.url_shortner.model.AuthenticationResponseRecord;
 import com.practice.url_shortner.repository.IUserRepository;
+import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.utility.JwtUtils;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,8 @@ public class UserServiceImpl implements IUserService {
 
 	private final JwtUtils jwtUtils;
 
+	private final ITokenRevocationService tokenRevocationService;
+
 	private IUserRepository userRepository;
 
 	@Override
@@ -36,6 +40,13 @@ public class UserServiceImpl implements IUserService {
 		String token = jwtUtils.createToken(credentials.userName());
 		log.info("New token issued to user {}. The token is {}", credentials.userName(), token);
 		return new AuthenticationResponseRecord(token, null);
+	}
+
+	@Override
+	public void logout(String token) {
+		DecodedJWT decodedJWT = jwtUtils.verifyJwt(token);
+		tokenRevocationService.revoke(decodedJWT);
+		log.info("User {} logged out.", decodedJWT.getSubject());
 	}
 
 	@Override

@@ -27,6 +27,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.url_shortner.constants.ErrorCode;
+import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.utility.JwtUtils;
 
 import jakarta.servlet.FilterChain;
@@ -38,6 +39,9 @@ class JwtAuthenticationFilterTest {
 
 	@Mock
 	private JwtUtils jwtUtils;
+
+	@Mock
+	private ITokenRevocationService tokenRevocationService;
 
 	@Mock
 	private HttpServletRequest request;
@@ -54,7 +58,7 @@ class JwtAuthenticationFilterTest {
 
 	@BeforeEach
 	void setUp() {
-		filter = new JwtAuthenticationFilter(jwtUtils, objectMapper);
+		filter = new JwtAuthenticationFilter(jwtUtils, objectMapper, tokenRevocationService);
 	}
 
 	@AfterEach
@@ -187,6 +191,22 @@ class JwtAuthenticationFilterTest {
 
 		assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
 		verify(filterChain).doFilter(request, response);
+	}
+
+	@Test
+	void doFilterInternal_returns401AuthenticationRequired_whenJtiIsOnDenylist() throws Exception {
+		when(request.getHeader("Authorization")).thenReturn("Bearer revoked-token");
+		DecodedJWT decodedJWT = mock(DecodedJWT.class);
+		when(decodedJWT.getId()).thenReturn("revoked-jti");
+		when(jwtUtils.verifyJwt("revoked-token")).thenReturn(decodedJWT);
+		when(tokenRevocationService.isRevoked("revoked-jti")).thenReturn(true);
+		MockHttpServletResponse realResponse = new MockHttpServletResponse();
+
+		filter.doFilterInternal(request, realResponse, filterChain);
+
+		assertUnauthorized(realResponse, ErrorCode.AUTHENTICATION_REQUIRED);
+		verify(filterChain, never()).doFilter(any(), any());
+		assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
 	}
 
 	private void assertUnauthorizedInvalidToken(MockHttpServletResponse realResponse) throws Exception {

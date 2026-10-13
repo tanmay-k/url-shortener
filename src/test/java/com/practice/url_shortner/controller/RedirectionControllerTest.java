@@ -20,6 +20,7 @@ import com.practice.url_shortner.configuration.AppConfiguration;
 import com.practice.url_shortner.security.JwtAuthenticationFilter;
 import com.practice.url_shortner.security.RateLimitingFilter;
 import com.practice.url_shortner.security.SecurityConfig;
+import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.service.url_mapping.IUrlMappingService;
 import com.practice.url_shortner.utility.JwtUtils;
 
@@ -41,6 +42,9 @@ class RedirectionControllerTest {
 
 	@MockitoBean
 	private JwtUtils jwtUtils;
+
+	@MockitoBean
+	private ITokenRevocationService tokenRevocationService;
 
 	@Test
 	void sendRedirect_returns301WithLocationHeader_whenMappingExists() throws Exception {

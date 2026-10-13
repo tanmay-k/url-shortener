@@ -1,6 +1,7 @@
 package com.practice.url_shortner.utility;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,7 @@ public class JwtUtils {
 		Algorithm algorithm = Algorithm.HMAC256(jwtSecret);
 		return JWT.create()
 				.withSubject(userName)
+				.withJWTId(UUID.randomUUID().toString())
 				.withIssuedAt(Instant.now())
 				.withExpiresAt(expiresAt)
 				.withIssuer(issuer)
@@ -48,6 +50,7 @@ public class JwtUtils {
 		JWTVerifier verifier = JWT.require(algorithm)
 				.withIssuer(issuer)
 				.withAudience(audience)
+				.withClaimPresence("jti")
 				.acceptExpiresAt(0)
 				.build();
 		return verifier.verify(token);

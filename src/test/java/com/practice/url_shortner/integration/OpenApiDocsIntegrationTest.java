@@ -43,6 +43,15 @@ class OpenApiDocsIntegrationTest {
 				.andExpect(jsonPath("$.paths['/api/1/short-url'].post.responses['401']").exists());
 	}
 
+	@Test
+	void apiDocs_logoutInheritsBearerAndHasNoAuthorizationHeaderParameter() throws Exception {
+		// The token comes from the Authorize button; a separate header input would
+		// make users enter it twice.
+		mockMvc.perform(get("/v3/api-docs/v1")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/1/logout'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/1/logout'].post.parameters").doesNotExist());
+	}
+
 	private static String examples(String path, String status) {
 		return "$.paths['" + path + "'].post.responses['" + status + "'].content['application/json'].examples";
 	}
