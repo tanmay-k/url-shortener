@@ -23,6 +23,7 @@ import com.practice.url_shortner.model.CreateUserRequest;
 import com.practice.url_shortner.service.user.IUserService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,7 +56,7 @@ public class UserController {
 	@ApiErrors({ ErrorCode.AUTHENTICATION_REQUIRED, ErrorCode.INVALID_TOKEN,
 			ErrorCode.SESSION_EXPIRED })
 	@PostMapping("/logout")
-	public ResponseEntity<Void> logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+	public ResponseEntity<Void> logout(@Parameter(hidden = true) @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
 		// JwtAuthenticationFilter has already validated the header and token.
 		userService.logout(Strings.CS.removeStart(authorization, "Bearer "));
 		return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
