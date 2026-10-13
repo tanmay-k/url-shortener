@@ -23,6 +23,8 @@ import com.practice.url_shortner.exception.CustomException;
 import com.practice.url_shortner.model.AuthenticationRequestRecord;
 import com.practice.url_shortner.model.AuthenticationResponseRecord;
 import com.practice.url_shortner.repository.IUserRepository;
+import com.practice.url_shortner.service.token.IRefreshTokenService;
+import com.practice.url_shortner.service.token.IRefreshTokenService.IssuedSession;
 import com.practice.url_shortner.service.token.ITokenRevocationService;
 import com.practice.url_shortner.utility.JwtUtils;
 import com.auth0.jwt.interfaces.DecodedJWT;
@@ -39,22 +41,29 @@ class UserServiceImplTest {
 	@Mock
 	private ITokenRevocationService tokenRevocationService;
 
+	@Mock
+	private IRefreshTokenService refreshTokenService;
+
 	private UserServiceImpl userService;
 
 	@org.junit.jupiter.api.BeforeEach
 	void setUp() {
-		userService = new UserServiceImpl(authenticationManager, jwtUtils, tokenRevocationService);
+		userService = new UserServiceImpl(authenticationManager, jwtUtils, tokenRevocationService, refreshTokenService);
 	}
 
 	@Test
-	void login_authenticatesAndReturnsTokenFromJwtUtils() {
-		when(jwtUtils.createToken("test-user")).thenReturn("fixed-token");
+	void login_authenticatesAndReturnsAccessAndRefreshTokens() {
+		when(refreshTokenService.startSession("test-user"))
+				.thenReturn(new IssuedSession("test-user", "refresh-1", "jti-1"));
+		when(jwtUtils.createToken("test-user", "jti-1")).thenReturn("fixed-token");
+		when(jwtUtils.accessTokenValidity()).thenReturn(java.time.Duration.ofMinutes(15));
 
 		AuthenticationResponseRecord response = userService
 				.login(new AuthenticationRequestRecord("test-user", "test-password"));
 
 		assertThat(response.token()).isEqualTo("fixed-token");
-		assertThat(response.refreshToken()).isNull();
+		assertThat(response.refreshToken()).isEqualTo("refresh-1");
+		assertThat(response.expiresIn()).isEqualTo(900);
 	}
 
 	@Test
@@ -68,7 +77,9 @@ class UserServiceImplTest {
 
 	@Test
 	void login_callsAuthenticationManagerWithCorrectCredentials() {
-		when(jwtUtils.createToken(any())).thenReturn("token");
+		when(refreshTokenService.startSession(any()))
+				.thenReturn(new IssuedSession("test-user", "refresh-1", "jti-1"));
+		when(jwtUtils.accessTokenValidity()).thenReturn(java.time.Duration.ofMinutes(15));
 
 		userService.login(new AuthenticationRequestRecord("test-user", "test-password"));
 
@@ -82,11 +93,38 @@ class UserServiceImplTest {
 	@Test
 	void logout_revokesTheVerifiedToken() {
 		DecodedJWT decodedJWT = org.mockito.Mockito.mock(DecodedJWT.class);
+		when(decodedJWT.getId()).thenReturn("jti-1");
 		when(jwtUtils.verifyJwt("a-token")).thenReturn(decodedJWT);
 
 		userService.logout("a-token");
 
 		verify(tokenRevocationService).revoke(decodedJWT);
+		verify(refreshTokenService).revokeSessionByAccessJti("jti-1");
+	}
+
+	@Test
+	void login_doesNotStartSession_whenAuthenticationFails() {
+		org.mockito.Mockito.doThrow(new BadCredentialsException("bad creds")).when(authenticationManager)
+				.authenticate(any());
+
+		assertThatThrownBy(() -> userService.login(new AuthenticationRequestRecord("test-user", "wrong-password")))
+				.isInstanceOf(BadCredentialsException.class);
+
+		org.mockito.Mockito.verifyNoInteractions(refreshTokenService);
+	}
+
+	@Test
+	void refresh_rotatesTheTokenAndIssuesNewAccessToken() {
+		when(refreshTokenService.rotate("old-refresh"))
+				.thenReturn(new IssuedSession("test-user", "new-refresh", "jti-2"));
+		when(jwtUtils.createToken("test-user", "jti-2")).thenReturn("new-access");
+		when(jwtUtils.accessTokenValidity()).thenReturn(java.time.Duration.ofMinutes(15));
+
+		AuthenticationResponseRecord response = userService.refresh("old-refresh");
+
+		assertThat(response.token()).isEqualTo("new-access");
+		assertThat(response.refreshToken()).isEqualTo("new-refresh");
+		assertThat(response.expiresIn()).isEqualTo(900);
 	}
 
 	@Test

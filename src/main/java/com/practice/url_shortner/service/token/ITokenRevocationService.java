@@ -1,5 +1,7 @@
 package com.practice.url_shortner.service.token;
 
+import java.time.Instant;
+
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 public interface ITokenRevocationService {
@@ -9,6 +11,9 @@ public interface ITokenRevocationService {
 	 * expired anyway. Revoking the same token twice is harmless.
 	 */
 	void revoke(DecodedJWT token);
+
+	/** Denylists the {@code jti} until {@code expiresAt}, after which the row can be purged. */
+	void revoke(String jti, Instant expiresAt);
 
 	boolean isRevoked(String jti);
 

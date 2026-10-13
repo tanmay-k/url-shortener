@@ -13,7 +13,7 @@
         <mapEntry key="JWT_AUDIENCE" value="url_shortner"/>
         <mapEntry key="JWT_ISSUER" value="tanmay@localhost"/>
         <mapEntry key="JWT_SECRET" value="secret"/>
-        <mapEntry key="JWT_VALIDITY" value="3600"/>
+        <mapEntry key="JWT_VALIDITY" value="900"/>
     </mapAttribute>
     <listAttribute key="org.eclipse.debug.ui.favoriteGroups">
         <listEntry value="org.eclipse.debug.ui.launchGroup.debug"/>

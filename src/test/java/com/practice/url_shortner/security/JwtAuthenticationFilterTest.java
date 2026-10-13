@@ -86,6 +86,25 @@ class JwtAuthenticationFilterTest {
 	void shouldNotFilter_returnsFalse_forNonGetRequestRegardlessOfPath() throws Exception {
 		when(request.getMethod()).thenReturn("POST");
 		when(request.getServletPath()).thenReturn("/abc123");
+		when(request.getRequestURI()).thenReturn("/abc123");
+
+		assertThat(filter.shouldNotFilter(request)).isFalse();
+	}
+
+	@Test
+	void shouldNotFilter_returnsTrue_forPostToTokenRefresh() throws Exception {
+		when(request.getMethod()).thenReturn("POST");
+		when(request.getServletPath()).thenReturn("/api/1/token/refresh");
+		when(request.getRequestURI()).thenReturn("/api/1/token/refresh");
+
+		assertThat(filter.shouldNotFilter(request)).isTrue();
+	}
+
+	@Test
+	void shouldNotFilter_returnsFalse_forPostToOtherApiPath() throws Exception {
+		when(request.getMethod()).thenReturn("POST");
+		when(request.getServletPath()).thenReturn("/api/1/logout");
+		when(request.getRequestURI()).thenReturn("/api/1/logout");
 
 		assertThat(filter.shouldNotFilter(request)).isFalse();
 	}

@@ -20,6 +20,7 @@ import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.model.AuthenticationRequestRecord;
 import com.practice.url_shortner.model.AuthenticationResponseRecord;
 import com.practice.url_shortner.model.CreateUserRequest;
+import com.practice.url_shortner.model.RefreshTokenRequestRecord;
 import com.practice.url_shortner.service.user.IUserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,7 +52,16 @@ public class UserController {
 		return userService.login(credentials);
 	}
 
-	@Operation(summary = "Log out", description = "Revokes the JWT sent in the Authorization header. The token is rejected from then on, even though it has not expired yet.")
+	@Operation(summary = "Refresh the session", description = "Exchanges a refresh token for a new JWT and a new refresh token. The presented refresh token is spent; presenting it again revokes the whole session. Do not send an Authorization header.")
+	@SecurityRequirements({})
+	@ApiResponse(responseCode = "200", description = "New token pair issued")
+	@ApiErrors({ ErrorCode.INVALID_REFRESH_TOKEN, ErrorCode.SESSION_EXPIRED })
+	@PostMapping("/token/refresh")
+	public AuthenticationResponseRecord refresh(@Valid @RequestBody RefreshTokenRequestRecord request) {
+		return userService.refresh(request.refreshToken());
+	}
+
+	@Operation(summary = "Log out", description = "Revokes the JWT sent in the Authorization header and ends its session, so the session's refresh token stops working too. The JWT is rejected from then on, even though it has not expired yet.")
 	@ApiResponse(responseCode = "204", description = "Token revoked")
 	@ApiErrors({ ErrorCode.AUTHENTICATION_REQUIRED, ErrorCode.INVALID_TOKEN,
 			ErrorCode.SESSION_EXPIRED })

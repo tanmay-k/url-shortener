@@ -23,12 +23,16 @@ public class TokenRevocationService implements ITokenRevocationService {
 
 	@Override
 	public void revoke(DecodedJWT token) {
-		String jti = token.getId();
+		revoke(token.getId(), token.getExpiresAtAsInstant());
+	}
+
+	@Override
+	public void revoke(String jti, Instant expiresAt) {
 		if (revokedTokenRepository.existsById(jti)) {
 			return;
 		}
 		try {
-			revokedTokenRepository.save(new RevokedTokenEntity(jti, token.getExpiresAtAsInstant()));
+			revokedTokenRepository.save(new RevokedTokenEntity(jti, expiresAt));
 			log.debug("Token {} revoked.", jti);
 		} catch (DataIntegrityViolationException e) {
 			// A concurrent logout with the same token inserted it first.

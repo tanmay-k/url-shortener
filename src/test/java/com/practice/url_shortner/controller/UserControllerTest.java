@@ -54,11 +54,12 @@ class UserControllerTest {
 
 	@Test
 	void login_returns200WithTokenBody_onSuccessfulAuthentication() throws Exception {
-		when(userService.login(any())).thenReturn(new AuthenticationResponseRecord("a-token", null));
+		when(userService.login(any())).thenReturn(new AuthenticationResponseRecord("a-token", "a-refresh-token", 900));
 
 		mockMvc.perform(post("/api/1/login").contentType("application/json")
 				.content("{\"userName\":\"test-user\",\"password\":\"test-password\"}")).andExpect(status().isOk())
-				.andExpect(content().json("{\"token\":\"a-token\"}"));
+				.andExpect(content().json(
+						"{\"token\":\"a-token\",\"refreshToken\":\"a-refresh-token\",\"expiresIn\":900}"));
 	}
 
 	@Test

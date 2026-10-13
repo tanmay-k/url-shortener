@@ -1,5 +1,6 @@
 package com.practice.url_shortner.utility;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -29,15 +30,29 @@ public class JwtUtils {
 		return createToken(userName, Instant.now().plusSeconds(tokenValidity));
 	}
 
+	/** Creates a token with the configured validity and the given {@code jti}. */
+	public String createToken(String userName, String jti){
+		return createToken(userName, jti, Instant.now().plusSeconds(tokenValidity));
+	}
+
+	/** How long an access token issued now stays valid. */
+	public Duration accessTokenValidity(){
+		return Duration.ofSeconds(tokenValidity);
+	}
+
 	/**
 	 * Creates a token that expires at the given instant instead of the configured
 	 * validity. An instant in the past yields an already-expired token.
 	 */
 	public String createToken(String userName, Instant expiresAt){
+		return createToken(userName, UUID.randomUUID().toString(), expiresAt);
+	}
+
+	private String createToken(String userName, String jti, Instant expiresAt){
 		Algorithm algorithm = Algorithm.HMAC256(jwtSecret);
 		return JWT.create()
 				.withSubject(userName)
-				.withJWTId(UUID.randomUUID().toString())
+				.withJWTId(jti)
 				.withIssuedAt(Instant.now())
 				.withExpiresAt(expiresAt)
 				.withIssuer(issuer)

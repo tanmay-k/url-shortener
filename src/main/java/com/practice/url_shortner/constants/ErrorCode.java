@@ -13,6 +13,7 @@ public enum ErrorCode {
 	AUTHENTICATION_REQUIRED("AUTHENTICATION_REQUIRED", "Authentication is required to access this resource.", HttpStatus.UNAUTHORIZED),
 	INVALID_TOKEN("INVALID_TOKEN", "Invalid or malformed authentication token.", HttpStatus.UNAUTHORIZED),
 	SESSION_EXPIRED("SESSION_EXPIRED", "Your session is expired. Log in again to continue.", HttpStatus.UNAUTHORIZED),
+	INVALID_REFRESH_TOKEN("INVALID_REFRESH_TOKEN", "The refresh token is invalid or has already been used. Log in again.", HttpStatus.UNAUTHORIZED),
 	USER_NAME_NOT_AVAILABLE("USER_NAME_NOT_AVAILABLE", "The username is already taken.", HttpStatus.BAD_REQUEST),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "Something went wrong.", HttpStatus.INTERNAL_SERVER_ERROR),
 	INVALID_MAPPED_URL("INVALID_MAPPED_URL", "Invalid URL provided for mapping", HttpStatus.BAD_REQUEST),
