@@ -19,6 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.practice.url_shortner.configuration.PasswordPolicyProperties;
 import com.practice.url_shortner.configuration.RateLimitProperties;
 import com.practice.url_shortner.configuration.RefreshTokenProperties;
 import com.practice.url_shortner.constants.ErrorCode;
@@ -29,7 +30,8 @@ import lombok.RequiredArgsConstructor;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableConfigurationProperties({ RateLimitProperties.class, RefreshTokenProperties.class })
+@EnableConfigurationProperties({ RateLimitProperties.class, RefreshTokenProperties.class,
+		PasswordPolicyProperties.class })
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -79,6 +81,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth.requestMatchers("/api/*/login").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/*/token/refresh").permitAll()
 						.requestMatchers(HttpMethod.GET, "/{shortCode:[a-zA-Z0-9]{6,10}}").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/*/password-reset").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/*/user").permitAll()
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 						.anyRequest().authenticated())

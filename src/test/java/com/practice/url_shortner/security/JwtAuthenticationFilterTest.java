@@ -101,6 +101,15 @@ class JwtAuthenticationFilterTest {
 	}
 
 	@Test
+	void shouldNotFilter_returnsTrue_forPostToPasswordReset() throws Exception {
+		when(request.getMethod()).thenReturn("POST");
+		when(request.getServletPath()).thenReturn("/api/1/password-reset");
+		when(request.getRequestURI()).thenReturn("/api/1/password-reset");
+
+		assertThat(filter.shouldNotFilter(request)).isTrue();
+	}
+
+	@Test
 	void shouldNotFilter_returnsFalse_forPostToOtherApiPath() throws Exception {
 		when(request.getMethod()).thenReturn("POST");
 		when(request.getServletPath()).thenReturn("/api/1/logout");

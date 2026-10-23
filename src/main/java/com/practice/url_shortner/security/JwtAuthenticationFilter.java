@@ -50,8 +50,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		// The access token a client is refreshing has usually expired; it must not
 		// get the request rejected before the refresh token is even looked at.
+		// The same goes for a password reset: the user cannot log in, and whatever
+		// token their client still holds is useless.
 		// Matched on the request URI because MockMvc leaves the servlet path empty.
-		return "POST".equals(request.getMethod()) && request.getRequestURI().matches("(/.*)?/api/[^/]+/token/refresh");
+		return "POST".equals(request.getMethod())
+				&& request.getRequestURI().matches("(/.*)?/api/[^/]+/(token/refresh|password-reset)");
 	}
 
 	/**

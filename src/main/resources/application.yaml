@@ -23,3 +23,10 @@ app:
     registration-requests-per-minute: 5
     url-creation-requests-per-minute: 20
     redirect-requests-per-minute: 60
+  password-policy:
+    min-length: 8
+    max-length: 72
+    require-uppercase: false
+    require-lowercase: false
+    require-digit: false
+    require-special: false

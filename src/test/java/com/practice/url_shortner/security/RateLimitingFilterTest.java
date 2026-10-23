@@ -112,6 +112,100 @@ class RateLimitingFilterTest {
 	}
 
 	@Test
+	void doFilterInternal_limitsPasswordResetByIp_withTheLoginLimit() throws Exception {
+		RateLimitingFilter filter = newFilter(new RateLimitProperties(1, 5, 20, 60));
+		when(request.getMethod()).thenReturn("POST");
+		when(request.getServletPath()).thenReturn("/api/1/password-reset");
+		when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+		stubResponseWriter();
+
+		filter.doFilterInternal(request, response, filterChain);
+		filter.doFilterInternal(request, response, filterChain);
+
+		verify(filterChain, times(1)).doFilter(request, response);
+		verify(response).setStatus(429);
+	}
+
+	@Test
+	void doFilterInternal_limitsAccountChangesPerUser_withTheLoginLimit() throws Exception {
+		RateLimitingFilter filter = newFilter(new RateLimitProperties(1, 5, 20, 60));
+		when(request.getMethod()).thenReturn("PUT", "PUT", "PUT");
+		when(request.getServletPath()).thenReturn("/api/1/user/password");
+		stubResponseWriter();
+
+		SecurityContextHolder.getContext()
+				.setAuthentication(new UsernamePasswordAuthenticationToken("alice", null, List.of()));
+		filter.doFilterInternal(request, response, filterChain);
+		filter.doFilterInternal(request, response, filterChain);
+
+		SecurityContextHolder.getContext()
+				.setAuthentication(new UsernamePasswordAuthenticationToken("bob", null, List.of()));
+		filter.doFilterInternal(request, response, filterChain);
+
+		// alice is blocked on her second call, bob has his own bucket.
+		verify(filterChain, times(2)).doFilter(request, response);
+		verify(response, times(1)).setStatus(429);
+	}
+
+	@Test
+	void doFilterInternal_limitsDeactivationAndRecoveryCodeRequests() throws Exception {
+		RateLimitingFilter filter = newFilter(new RateLimitProperties(1, 5, 20, 60));
+		when(request.getMethod()).thenReturn("DELETE", "DELETE", "POST", "POST");
+		when(request.getServletPath()).thenReturn("/api/1/user", "/api/1/user", "/api/1/user/recovery-code",
+				"/api/1/user/recovery-code");
+		stubResponseWriter();
+		SecurityContextHolder.getContext()
+				.setAuthentication(new UsernamePasswordAuthenticationToken("carol", null, List.of()));
+
+		for (int i = 0; i < 4; i++) {
+			filter.doFilterInternal(request, response, filterChain);
+		}
+
+		// Each endpoint resolves to the shared per-user bucket, so only the first call gets through.
+		verify(filterChain, times(1)).doFilter(request, response);
+		verify(response, times(3)).setStatus(429);
+	}
+
+	@Test
+	void doFilterInternal_sizesEachEndpointScopeSeparately_forTheSameUser() throws Exception {
+		// Account endpoints get the login limit (1); short URLs get their own, larger one (3).
+		RateLimitingFilter filter = newFilter(new RateLimitProperties(1, 5, 3, 60));
+		when(request.getMethod()).thenReturn("POST", "PUT", "PUT", "POST", "POST", "POST");
+		when(request.getServletPath()).thenReturn("/api/1/short-url", "/api/1/user/password",
+				"/api/1/user/password", "/api/1/short-url", "/api/1/short-url", "/api/1/short-url");
+		stubResponseWriter();
+		SecurityContextHolder.getContext()
+				.setAuthentication(new UsernamePasswordAuthenticationToken("alice", null, List.of()));
+
+		for (int i = 0; i < 6; i++) {
+			filter.doFilterInternal(request, response, filterChain);
+		}
+
+		// Short URL creation first must not give the password endpoint a bucket of 3: the second
+		// password change is blocked. The short-URL bucket is not shrunk by it either: 3 get
+		// through, the fourth is blocked.
+		verify(filterChain, times(1 + 1 + 2)).doFilter(request, response);
+		verify(response, times(2)).setStatus(429);
+	}
+
+	@Test
+	void doFilterInternal_keepsLoginAndRegistrationBucketsApart_forTheSameIp() throws Exception {
+		RateLimitingFilter filter = newFilter(new RateLimitProperties(1, 3, 20, 60));
+		when(request.getMethod()).thenReturn("POST");
+		when(request.getServletPath()).thenReturn("/api/1/login", "/api/1/login", "/api/1/user", "/api/1/user");
+		when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+		stubResponseWriter();
+
+		for (int i = 0; i < 4; i++) {
+			filter.doFilterInternal(request, response, filterChain);
+		}
+
+		// Login: 1 of 2 allowed (limit 1). Registration: both allowed (limit 3), unaffected by the login bucket.
+		verify(filterChain, times(3)).doFilter(request, response);
+		verify(response, times(1)).setStatus(429);
+	}
+
+	@Test
 	void doFilterInternal_givesDifferentUsersIndependentBuckets_onUserScopedEndpoint() throws Exception {
 		RateLimitingFilter filter = newFilter(new RateLimitProperties(5, 5, 1, 60));
 		when(request.getMethod()).thenReturn("POST");

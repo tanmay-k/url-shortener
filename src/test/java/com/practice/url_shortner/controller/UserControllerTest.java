@@ -3,7 +3,9 @@ package com.practice.url_shortner.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -21,6 +22,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.exception.CustomException;
 import com.practice.url_shortner.model.AuthenticationResponseRecord;
+import com.practice.url_shortner.model.ChangePasswordRequestRecord;
+import com.practice.url_shortner.model.CreateUserRequest;
+import com.practice.url_shortner.model.PasswordResetRequestRecord;
+import com.practice.url_shortner.model.RecoveryCodeResponseRecord;
 import com.practice.url_shortner.configuration.AppConfiguration;
 import com.practice.url_shortner.security.JwtAuthenticationFilter;
 import com.practice.url_shortner.security.RateLimitingFilter;
@@ -107,28 +112,179 @@ class UserControllerTest {
 	}
 
 	@Test
-	void createUser_returns204_onSuccess() throws Exception {
-		when(passwordEncoder.encode("test-password")).thenReturn("encoded-password");
+	void createUser_returns201WithTheRecoveryCode_onSuccess() throws Exception {
+		when(userService.register(any())).thenReturn(new RecoveryCodeResponseRecord("ABCD-EFGH-IJKL-MNOP-QRST-UVWX"));
 
 		mockMvc.perform(post("/api/1/user").contentType("application/json")
 				.content("{\"userName\":\"test-user\",\"password\":\"test-password\"}"))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isCreated())
+				.andExpect(content().json("{\"recoveryCode\":\"ABCD-EFGH-IJKL-MNOP-QRST-UVWX\"}"));
 
-		verify(userDetailsManager).createUser(org.mockito.ArgumentMatchers.argThat(userDetails -> userDetails instanceof User
-				&& ((User) userDetails).getUsername().equals("test-user")
-				&& ((User) userDetails).getPassword().equals("encoded-password")));
+		verify(userService).register(new CreateUserRequest("test-user", "test-password"));
 	}
 
 	@Test
 	void createUser_returns400_whenUsernameAlreadyTaken() throws Exception {
-		when(passwordEncoder.encode(any())).thenReturn("encoded-password");
-		org.mockito.Mockito.doThrow(CustomException.builder().errorCode(ErrorCode.USER_NAME_NOT_AVAILABLE).build())
-				.when(userDetailsManager).createUser(any());
+		when(userService.register(any()))
+				.thenThrow(CustomException.builder().errorCode(ErrorCode.USER_NAME_NOT_AVAILABLE).build());
 
 		mockMvc.perform(post("/api/1/user").contentType("application/json")
 				.content("{\"userName\":\"test-user\",\"password\":\"test-password\"}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(content()
 						.json("{\"errorCode\":\"" + ErrorCode.USER_NAME_NOT_AVAILABLE.getErrorCode() + "\"}"));
+	}
+
+	@Test
+	void createUser_returns400WeakPassword_whenThePasswordBreaksThePolicy() throws Exception {
+		when(userService.register(any()))
+				.thenThrow(CustomException.builder().errorCode(ErrorCode.WEAK_PASSWORD).build());
+
+		mockMvc.perform(post("/api/1/user").contentType("application/json")
+				.content("{\"userName\":\"test-user\",\"password\":\"weak\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(content().json("{\"errorCode\":\"" + ErrorCode.WEAK_PASSWORD.getErrorCode() + "\"}"));
+	}
+
+	private void authenticateAsTestUser() {
+		DecodedJWT decodedJWT = org.mockito.Mockito.mock(DecodedJWT.class);
+		when(decodedJWT.getSubject()).thenReturn("test-user");
+		when(jwtUtils.verifyJwt("a-token")).thenReturn(decodedJWT);
+	}
+
+	@Test
+	void changePassword_returns204_andPassesTheAuthenticatedUserToTheService() throws Exception {
+		authenticateAsTestUser();
+
+		mockMvc.perform(put("/api/1/user/password").header("Authorization", "Bearer a-token")
+				.contentType("application/json")
+				.content("{\"currentPassword\":\"old-password\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isNoContent());
+
+		verify(userService).changePassword("test-user",
+				new ChangePasswordRequestRecord("old-password", "new-password"));
+	}
+
+	@Test
+	void changePassword_returns401_whenNotAuthenticated() throws Exception {
+		mockMvc.perform(put("/api/1/user/password").contentType("application/json")
+				.content("{\"currentPassword\":\"old-password\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isUnauthorized()).andExpect(content()
+						.json("{\"errorCode\":\"" + ErrorCode.AUTHENTICATION_REQUIRED.getErrorCode() + "\"}"));
+
+		org.mockito.Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	void changePassword_returns400_whenAFieldIsBlank() throws Exception {
+		authenticateAsTestUser();
+
+		mockMvc.perform(put("/api/1/user/password").header("Authorization", "Bearer a-token")
+				.contentType("application/json")
+				.content("{\"currentPassword\":\"\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isBadRequest());
+
+		org.mockito.Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	void changePassword_returns401InvalidCredentials_whenTheCurrentPasswordIsWrong() throws Exception {
+		authenticateAsTestUser();
+		org.mockito.Mockito.doThrow(CustomException.builder().errorCode(ErrorCode.INVALID_CREDENTIALS).build())
+				.when(userService).changePassword(any(), any());
+
+		mockMvc.perform(put("/api/1/user/password").header("Authorization", "Bearer a-token")
+				.contentType("application/json")
+				.content("{\"currentPassword\":\"wrong\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isUnauthorized()).andExpect(content()
+						.json("{\"errorCode\":\"" + ErrorCode.INVALID_CREDENTIALS.getErrorCode() + "\"}"));
+	}
+
+	@Test
+	void deactivate_returns204_andPassesTheAuthenticatedUserAndPasswordToTheService() throws Exception {
+		authenticateAsTestUser();
+
+		mockMvc.perform(delete("/api/1/user").header("Authorization", "Bearer a-token")
+				.contentType("application/json").content("{\"password\":\"current-password\"}"))
+				.andExpect(status().isNoContent());
+
+		verify(userService).deactivate("test-user", "current-password");
+	}
+
+	@Test
+	void deactivate_returns401_whenNotAuthenticated() throws Exception {
+		mockMvc.perform(delete("/api/1/user").contentType("application/json")
+				.content("{\"password\":\"current-password\"}")).andExpect(status().isUnauthorized());
+
+		org.mockito.Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	void deactivate_returns400_whenThePasswordIsMissing() throws Exception {
+		authenticateAsTestUser();
+
+		mockMvc.perform(delete("/api/1/user").header("Authorization", "Bearer a-token")
+				.contentType("application/json").content("{}")).andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void regenerateRecoveryCode_returns200WithTheNewCode() throws Exception {
+		authenticateAsTestUser();
+		when(userService.regenerateRecoveryCode("test-user", "current-password"))
+				.thenReturn(new RecoveryCodeResponseRecord("NEW0-CODE"));
+
+		mockMvc.perform(post("/api/1/user/recovery-code").header("Authorization", "Bearer a-token")
+				.contentType("application/json").content("{\"password\":\"current-password\"}"))
+				.andExpect(status().isOk()).andExpect(content().json("{\"recoveryCode\":\"NEW0-CODE\"}"));
+	}
+
+	@Test
+	void regenerateRecoveryCode_returns401_whenNotAuthenticated() throws Exception {
+		mockMvc.perform(post("/api/1/user/recovery-code").contentType("application/json")
+				.content("{\"password\":\"current-password\"}")).andExpect(status().isUnauthorized());
+
+		org.mockito.Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	void resetPassword_returns200WithTheReplacementCode_withoutAuthentication() throws Exception {
+		when(userService.resetPassword(any())).thenReturn(new RecoveryCodeResponseRecord("NEW0-CODE"));
+
+		mockMvc.perform(post("/api/1/password-reset").contentType("application/json").content(
+				"{\"userName\":\"test-user\",\"recoveryCode\":\"ABCD-EFGH\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isOk()).andExpect(content().json("{\"recoveryCode\":\"NEW0-CODE\"}"));
+
+		verify(userService)
+				.resetPassword(new PasswordResetRequestRecord("test-user", "ABCD-EFGH", "new-password"));
+	}
+
+	@Test
+	void resetPassword_ignoresAStaleAuthorizationHeader() throws Exception {
+		when(userService.resetPassword(any())).thenReturn(new RecoveryCodeResponseRecord("NEW0-CODE"));
+
+		mockMvc.perform(post("/api/1/password-reset").header("Authorization", "Bearer expired-or-garbage")
+				.contentType("application/json").content(
+						"{\"userName\":\"test-user\",\"recoveryCode\":\"ABCD-EFGH\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void resetPassword_returns401InvalidCredentials_whenTheCodeIsWrong() throws Exception {
+		when(userService.resetPassword(any()))
+				.thenThrow(CustomException.builder().errorCode(ErrorCode.INVALID_CREDENTIALS).build());
+
+		mockMvc.perform(post("/api/1/password-reset").contentType("application/json").content(
+				"{\"userName\":\"test-user\",\"recoveryCode\":\"WRONG\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isUnauthorized()).andExpect(content()
+						.json("{\"errorCode\":\"" + ErrorCode.INVALID_CREDENTIALS.getErrorCode() + "\"}"));
+	}
+
+	@Test
+	void resetPassword_returns400_whenAFieldIsBlank() throws Exception {
+		mockMvc.perform(post("/api/1/password-reset").contentType("application/json")
+				.content("{\"userName\":\"test-user\",\"recoveryCode\":\"\",\"newPassword\":\"new-password\"}"))
+				.andExpect(status().isBadRequest());
+
+		org.mockito.Mockito.verifyNoInteractions(userService);
 	}
 }

@@ -15,6 +15,8 @@ public enum ErrorCode {
 	SESSION_EXPIRED("SESSION_EXPIRED", "Your session is expired. Log in again to continue.", HttpStatus.UNAUTHORIZED),
 	INVALID_REFRESH_TOKEN("INVALID_REFRESH_TOKEN", "The refresh token is invalid or has already been used. Log in again.", HttpStatus.UNAUTHORIZED),
 	USER_NAME_NOT_AVAILABLE("USER_NAME_NOT_AVAILABLE", "The username is already taken.", HttpStatus.BAD_REQUEST),
+	WEAK_PASSWORD("WEAK_PASSWORD", "The password does not meet the password policy.", HttpStatus.BAD_REQUEST),
+	PASSWORD_UNCHANGED("PASSWORD_UNCHANGED", "The new password must be different from the current password.", HttpStatus.BAD_REQUEST),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "Something went wrong.", HttpStatus.INTERNAL_SERVER_ERROR),
 	INVALID_MAPPED_URL("INVALID_MAPPED_URL", "Invalid URL provided for mapping", HttpStatus.BAD_REQUEST),
 	USER_NOT_FOUND("USER_NOT_FOUND", "User not found.", HttpStatus.NOT_FOUND),

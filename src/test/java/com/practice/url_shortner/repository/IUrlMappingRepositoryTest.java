@@ -19,6 +19,9 @@ class IUrlMappingRepositoryTest {
 	@Autowired
 	private IUrlMappingRepository urlMappingRepository;
 
+	@Autowired
+	private IUserRepository userRepository;
+
 	@Test
 	void findByShortCode_returnsMapping_whenExists() {
 		urlMappingRepository.save(TestDataFactory.aUrlMappingEntity(m -> m.setShortCode("findme1")));
@@ -36,18 +39,53 @@ class IUrlMappingRepositoryTest {
 		assertThat(found).isEmpty();
 	}
 
-	@Test
-	void findByShortCodeAndEnabled_returnsMapping_onlyWhenEnabledMatches() {
-		urlMappingRepository.save(TestDataFactory.aUrlMappingEntity(m -> {
-			m.setShortCode("enabled1");
-			m.setEnabled(true);
-		}));
-		urlMappingRepository.save(TestDataFactory.aUrlMappingEntity(m -> {
-			m.setShortCode("disabld1");
-			m.setEnabled(false);
-		}));
+	private int savedUser(String userName, boolean enabled) {
+		return userRepository.save(TestDataFactory.aUserEntity(u -> {
+			u.setUsername(userName);
+			u.setEnabled(enabled);
+		})).getId();
+	}
 
-		assertThat(urlMappingRepository.findByShortCodeAndEnabled("enabled1", true)).isPresent();
-		assertThat(urlMappingRepository.findByShortCodeAndEnabled("disabld1", true)).isEmpty();
+	private void savedMapping(String shortCode, boolean enabled, int ownerId) {
+		urlMappingRepository.save(TestDataFactory.aUrlMappingEntity(m -> {
+			m.setShortCode(shortCode);
+			m.setEnabled(enabled);
+			m.setCreatedBy(ownerId);
+		}));
+	}
+
+	@Test
+	void findActiveByShortCode_returnsMapping_onlyWhenMappingIsEnabled() {
+		int owner = savedUser("owner-1", true);
+		savedMapping("enabled1", true, owner);
+		savedMapping("disabld1", false, owner);
+
+		assertThat(urlMappingRepository.findActiveByShortCode("enabled1")).isPresent();
+		assertThat(urlMappingRepository.findActiveByShortCode("disabld1")).isEmpty();
+	}
+
+	@Test
+	void findActiveByShortCode_returnsEmpty_whenTheOwnerIsDisabled() {
+		int owner = savedUser("owner-2", false);
+		savedMapping("owned001", true, owner);
+
+		assertThat(urlMappingRepository.findActiveByShortCode("owned001")).isEmpty();
+	}
+
+	@Test
+	void findActiveByShortCode_resolvesAgain_whenTheOwnerIsEnabledAgain() {
+		int owner = savedUser("owner-3", false);
+		savedMapping("owned002", true, owner);
+		userRepository.findById(owner).orElseThrow().setEnabled(true);
+		userRepository.flush();
+
+		assertThat(urlMappingRepository.findActiveByShortCode("owned002")).isPresent();
+	}
+
+	@Test
+	void findActiveByShortCode_returnsEmpty_whenTheMappingHasNoKnownOwner() {
+		savedMapping("orphan01", true, 9999);
+
+		assertThat(urlMappingRepository.findActiveByShortCode("orphan01")).isEmpty();
 	}
 }

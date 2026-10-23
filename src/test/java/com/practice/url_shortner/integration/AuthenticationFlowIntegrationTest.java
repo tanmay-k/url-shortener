@@ -81,7 +81,7 @@ class AuthenticationFlowIntegrationTest {
 	private void register(String userName, String password) throws Exception {
 		mockMvc.perform(post("/api/1/user").contentType("application/json")
 				.content("{\"userName\":\"" + userName + "\",\"password\":\"" + password + "\"}"))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isCreated());
 	}
 
 	// ---- Protected endpoint ----

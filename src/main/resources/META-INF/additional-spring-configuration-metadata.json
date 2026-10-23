@@ -25,6 +25,42 @@
     "description": "A description for 'app.security.jwt-audience'"
   },
   {
+    "name": "app.password-policy.min-length",
+    "type": "java.lang.Integer",
+    "description": "Minimum length of a new password, in characters.",
+    "defaultValue": 8
+  },
+  {
+    "name": "app.password-policy.max-length",
+    "type": "java.lang.Integer",
+    "description": "Maximum length of a new password, in UTF-8 bytes (bcrypt reads at most 72).",
+    "defaultValue": 72
+  },
+  {
+    "name": "app.password-policy.require-uppercase",
+    "type": "java.lang.Boolean",
+    "description": "Require at least one upper-case letter in a new password.",
+    "defaultValue": false
+  },
+  {
+    "name": "app.password-policy.require-lowercase",
+    "type": "java.lang.Boolean",
+    "description": "Require at least one lower-case letter in a new password.",
+    "defaultValue": false
+  },
+  {
+    "name": "app.password-policy.require-digit",
+    "type": "java.lang.Boolean",
+    "description": "Require at least one digit in a new password.",
+    "defaultValue": false
+  },
+  {
+    "name": "app.password-policy.require-special",
+    "type": "java.lang.Boolean",
+    "description": "Require at least one character that is neither a letter nor a digit in a new password.",
+    "defaultValue": false
+  },
+  {
     "name": "app.rate-limit.login-requests-per-minute",
     "type": "java.lang.Integer",
     "description": "Maximum login attempts allowed per IP address per minute.",

@@ -50,7 +50,7 @@ class RefreshTokenFlowIntegrationTest {
 		String userName = "user-" + System.nanoTime();
 		mockMvc.perform(post("/api/1/user").contentType("application/json")
 				.content("{\"userName\":\"" + userName + "\",\"password\":\"password123\"}"))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isCreated());
 		return userName;
 	}
 

@@ -39,6 +39,10 @@ public class UserEntity {
 
 	private boolean enabled;
 
+	/** SHA-256 of the one-time recovery code; null until the user has one. */
+	@Column(name = "recovery_code_hash")
+	private @Nullable String recoveryCodeHash;
+
 	@Column(name = "created_at")
 	private LocalDateTime createdAt;
 

@@ -16,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.exception.CustomException;
@@ -44,11 +43,24 @@ class UserServiceImplTest {
 	@Mock
 	private IRefreshTokenService refreshTokenService;
 
+	@Mock
+	private IUserRepository userRepository;
+
+	@Mock
+	private UserDetailsManagerImpl userDetailsManager;
+
+	@Mock
+	private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
+	@Mock
+	private PasswordPolicy passwordPolicy;
+
 	private UserServiceImpl userService;
 
 	@org.junit.jupiter.api.BeforeEach
 	void setUp() {
-		userService = new UserServiceImpl(authenticationManager, jwtUtils, tokenRevocationService, refreshTokenService);
+		userService = new UserServiceImpl(authenticationManager, jwtUtils, tokenRevocationService, refreshTokenService,
+				userRepository, userDetailsManager, passwordEncoder, passwordPolicy);
 	}
 
 	@Test
@@ -128,23 +140,12 @@ class UserServiceImplTest {
 	}
 
 	@Test
-	void getUser_throwsNpe_becauseUserRepositoryIsNotConstructorInjected() {
-		// UserServiceImpl.userRepository is not declared `final`, so
-		// @RequiredArgsConstructor never wires it - it stays null after
-		// construction via the real constructor. This test pins that current
-		// (buggy) behavior rather than working around it.
-		assertThatThrownBy(() -> userService.getUser("test-user")).isInstanceOf(NullPointerException.class);
-	}
-
-	@Test
 	void getUser_throwsIllegalArgumentException_whenUsernameBlank() {
 		assertThatThrownBy(() -> userService.getUser("")).isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
-	void getUser_withReflectivelyInjectedRepository_throwsUserNotFound_whenAbsent() {
-		IUserRepository userRepository = org.mockito.Mockito.mock(IUserRepository.class);
-		ReflectionTestUtils.setField(userService, "userRepository", userRepository);
+	void getUser_throwsUserNotFound_whenAbsent() {
 		when(userRepository.findByUsername("test-user")).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> userService.getUser("test-user")).isInstanceOf(CustomException.class)

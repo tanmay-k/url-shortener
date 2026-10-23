@@ -1,6 +1,7 @@
 package com.practice.url_shortner.exception_handler;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AccountStatusException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -37,6 +38,16 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(exception = BadCredentialsException.class)
 	ResponseEntity<ErrorResponse> handlerBadCredentialsException(BadCredentialsException badCredsException){
 		log.info("User authentication failed");
+		return buildResponse(ErrorCode.INVALID_CREDENTIALS);
+	}
+
+	/**
+	 * A disabled, locked or expired account must look exactly like a wrong
+	 * password, so the response does not reveal that the account exists.
+	 */
+	@ExceptionHandler(exception = AccountStatusException.class)
+	ResponseEntity<ErrorResponse> handleAccountStatusException(AccountStatusException accountStatusException) {
+		log.info("Login rejected by account status: {}", accountStatusException.getClass().getSimpleName());
 		return buildResponse(ErrorCode.INVALID_CREDENTIALS);
 	}
 

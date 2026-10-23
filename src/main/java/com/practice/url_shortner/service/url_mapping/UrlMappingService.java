@@ -74,7 +74,7 @@ public class UrlMappingService implements IUrlMappingService {
 
 	@Override
 	public String resolveShortCodeToUrl(String shortCode) {
-		UrlMappingEntity urlMappingEntity = urlMappingRepository.findByShortCodeAndEnabled(shortCode, true)
+		UrlMappingEntity urlMappingEntity = urlMappingRepository.findActiveByShortCode(shortCode)
 				.orElseThrow(() -> CustomException.builder().errorCode(ErrorCode.NOT_FOUND).build());
 		return urlMappingEntity.getLongUrl();
 	}
