@@ -5,7 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AccountExpiredException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.exception.CustomException;
@@ -42,6 +46,18 @@ class GlobalExceptionHandlerTest {
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 		assertThat(response.getBody().getErrorCode()).isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR.getErrorCode());
+	}
+
+	@Test
+	void handleAccountStatusException_makesEveryAccountStatusLookLikeBadCredentials() {
+		for (var exception : java.util.List.of(new DisabledException("disabled"), new LockedException("locked"),
+				new AccountExpiredException("expired"), new CredentialsExpiredException("credentials expired"))) {
+			ResponseEntity<ErrorResponse> response = handler.handleAccountStatusException(exception);
+
+			assertThat(response.getStatusCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS.getDefaultHttpStatus());
+			assertThat(response.getBody().getErrorCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS.getErrorCode());
+			assertThat(response.getBody().getMessage()).isEqualTo(ErrorCode.INVALID_CREDENTIALS.getMessage());
+		}
 	}
 
 	@Test

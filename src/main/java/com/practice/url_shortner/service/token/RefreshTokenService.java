@@ -50,6 +50,11 @@ public class RefreshTokenService implements IRefreshTokenService {
 		// Serializes concurrent logins of the same user so they cannot all slip under the cap.
 		UserEntity user = userRepository.findByUsernameForUpdate(userName)
 				.orElseThrow(() -> CustomException.builder().errorCode(ErrorCode.USER_NOT_FOUND).build());
+		if (!user.isEnabled()) {
+			// Login authenticated the user before this lock; deactivation may have committed in between.
+			log.warn("Not starting a session for disabled user {}.", userName);
+			throw CustomException.builder().errorCode(ErrorCode.INVALID_CREDENTIALS).build();
+		}
 
 		Instant now = Instant.now();
 		List<RefreshTokenEntity> active = refreshTokenRepository.findActiveSessions(user.getId(), now);
@@ -87,6 +92,13 @@ public class RefreshTokenService implements IRefreshTokenService {
 		UserEntity user = userRepository.findById(current.getUserId())
 				.orElseThrow(() -> CustomException.builder().errorCode(ErrorCode.INVALID_REFRESH_TOKEN).build());
 
+		if (!user.isEnabled()) {
+			// Deactivation revokes the user's sessions; this covers any session it missed.
+			log.warn("Refresh rejected for disabled user {}. Revoking the session.", user.getUsername());
+			revokeFamily(current.getFamilyId(), now);
+			throw CustomException.builder().errorCode(ErrorCode.INVALID_REFRESH_TOKEN).build();
+		}
+
 		current.setUsed(true);
 		refreshTokenRepository.save(current);
 		// The new link inherits the absolute expiry, so rotating never extends the session.
@@ -100,6 +112,18 @@ public class RefreshTokenService implements IRefreshTokenService {
 			revokeFamily(token.getFamilyId(), Instant.now());
 			log.debug("Session {} revoked.", token.getFamilyId());
 		});
+	}
+
+	@Override
+	@Transactional
+	public void revokeAllSessions(int userId) {
+		Instant now = Instant.now();
+		// Not just active sessions: one past its absolute expiry can still hold an access token that works.
+		List<String> families = refreshTokenRepository.findFamilyIdsWithLiveCredentials(userId, now);
+		for (String familyId : families) {
+			revokeFamily(familyId, now);
+		}
+		log.info("Revoked {} session(s) of user id {}.", families.size(), userId);
 	}
 
 	@Override

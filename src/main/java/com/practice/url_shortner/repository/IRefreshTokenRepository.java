@@ -32,6 +32,18 @@ public interface IRefreshTokenRepository extends JpaRepository<RefreshTokenEntit
 			ORDER BY t.expiresAt ASC, t.id ASC""")
 	List<RefreshTokenEntity> findActiveSessions(int userId, Instant now);
 
+	/**
+	 * Sessions of the user that can still be used: a link that is not revoked and either
+	 * has an access token that has not expired or is the live refresh token of a session
+	 * that has not expired. Unlike {@link #findActiveSessions}, this includes a session whose
+	 * refresh expiry has passed but whose last access token is still valid.
+	 */
+	@Query("""
+			SELECT DISTINCT t.familyId FROM RefreshTokenEntity t
+			WHERE t.userId = :userId AND t.revoked = false
+			AND (t.accessExpiresAt > :now OR (t.used = false AND t.expiresAt > :now))""")
+	List<String> findFamilyIdsWithLiveCredentials(int userId, Instant now);
+
 	@Modifying
 	@Query("DELETE FROM RefreshTokenEntity t WHERE t.expiresAt < :cutoff")
 	int deleteExpiredBefore(Instant cutoff);

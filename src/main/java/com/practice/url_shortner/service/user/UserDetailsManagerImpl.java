@@ -58,6 +58,12 @@ public class UserDetailsManagerImpl implements UserDetailsManager, UserDetailsPa
 	@Override
 	@Transactional
 	public void createUser(UserDetails user) {
+		createUser(user, null);
+	}
+
+	/** Creates the user with its recovery code hash set in the same insert. */
+	@Transactional
+	public void createUser(UserDetails user, @Nullable String recoveryCodeHash) {
 		log.debug("Request received to create new user: {}", user.getUsername());
 		if (StringUtils.isAnyBlank(user.getUsername(), user.getPassword())) {
 			log.info("Invalid username or password. User {} not created.", user.getUsername());
@@ -78,6 +84,7 @@ public class UserDetailsManagerImpl implements UserDetailsManager, UserDetailsPa
 		userEntity.setAccountNonLocked(true);
 		userEntity.setCredentialsNonExpired(true);
 		userEntity.setEnabled(true);
+		userEntity.setRecoveryCodeHash(recoveryCodeHash);
 
 		// The pre-check above is only a fast path; the unique index on users.username is the real guarantee
 		// against concurrent registrations. Flush so a violation is thrown here instead of at commit.

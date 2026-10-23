@@ -32,6 +32,12 @@ public interface IRefreshTokenService {
 	 */
 	void revokeSessionByAccessJti(String jti);
 
+	/**
+	 * Ends every active session of the user and denylists their unexpired access
+	 * tokens, so the user has to log in again. Does nothing if there are none.
+	 */
+	void revokeAllSessions(int userId);
+
 	/** Removes sessions whose absolute lifetime has passed. */
 	int purgeExpired();
 }

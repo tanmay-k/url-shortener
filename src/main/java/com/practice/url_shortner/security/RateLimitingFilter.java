@@ -34,6 +34,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 	private final RateLimitProperties rateLimitProperties;
 	private final ObjectMapper objectMapper;
 
+	/**
+	 * A limit applies to one scope of endpoints. The scope is part of the bucket key, so
+	 * endpoints with different limits never draw from, or size, each other's bucket.
+	 */
+	private record Limit(String scope, int perMinute) {
+	}
+
 	private final ConcurrentHashMap<String, Bucket> ipBuckets = new ConcurrentHashMap<>();
 	private final ConcurrentHashMap<String, Bucket> userBuckets = new ConcurrentHashMap<>();
 
@@ -44,8 +51,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 		String method = request.getMethod();
 		String path = request.getServletPath();
 
-		Integer limitPerMinute = getLimitForRequest(method, path);
-		if (limitPerMinute == null) {
+		Limit limit = getLimitForRequest(method, path);
+		if (limit == null) {
 			filterChain.doFilter(request, response);
 			return;
 		}
@@ -59,14 +66,14 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 		ConcurrentHashMap<String, Bucket> store;
 
 		if (isAuthenticated && isUserScopedEndpoint(method, path)) {
-			key = authentication.getName();
+			key = limit.scope() + ":" + authentication.getName();
 			store = userBuckets;
 		} else {
-			key = resolveClientIp(request);
+			key = limit.scope() + ":" + resolveClientIp(request);
 			store = ipBuckets;
 		}
 
-		Bucket bucket = store.computeIfAbsent(key, k -> createBucket(limitPerMinute));
+		Bucket bucket = store.computeIfAbsent(key, k -> createBucket(limit.perMinute()));
 		ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
 
 		if (probe.isConsumed()) {
@@ -79,24 +86,37 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 		}
 	}
 
-	private Integer getLimitForRequest(String method, String path) {
-		if ("POST".equals(method) && (path.matches("/api/[^/]+/login") || path.matches("/api/[^/]+/token/refresh"))) {
-			return rateLimitProperties.loginRequestsPerMinute();
+	private Limit getLimitForRequest(String method, String path) {
+		if ("POST".equals(method) && (path.matches("/api/[^/]+/login") || path.matches("/api/[^/]+/token/refresh")
+				|| path.matches("/api/[^/]+/password-reset"))) {
+			return new Limit("auth", rateLimitProperties.loginRequestsPerMinute());
+		}
+		// Accept the current password, so they get the login limit, but a bucket of their own.
+		if (isAccountChange(method, path)
+				|| ("POST".equals(method) && path.matches("/api/[^/]+/user/recovery-code"))) {
+			return new Limit("account", rateLimitProperties.loginRequestsPerMinute());
 		}
 		if ("POST".equals(method) && path.matches("/api/[^/]+/user")) {
-			return rateLimitProperties.registrationRequestsPerMinute();
+			return new Limit("registration", rateLimitProperties.registrationRequestsPerMinute());
 		}
 		if ("POST".equals(method) && path.matches("/api/[^/]+/short-url")) {
-			return rateLimitProperties.urlCreationRequestsPerMinute();
+			return new Limit("url-creation", rateLimitProperties.urlCreationRequestsPerMinute());
 		}
 		if ("GET".equals(method) && path.matches("/[a-zA-Z0-9]{6,10}")) {
-			return rateLimitProperties.redirectRequestsPerMinute();
+			return new Limit("redirect", rateLimitProperties.redirectRequestsPerMinute());
 		}
 		return null;
 	}
 
+	/** Authenticated endpoints, limited per user rather than per IP. */
 	private boolean isUserScopedEndpoint(String method, String path) {
-		return "POST".equals(method) && path.matches("/api/[^/]+/short-url");
+		return ("POST".equals(method) && (path.matches("/api/[^/]+/short-url")
+				|| path.matches("/api/[^/]+/user/recovery-code"))) || isAccountChange(method, path);
+	}
+
+	private boolean isAccountChange(String method, String path) {
+		return ("PUT".equals(method) && path.matches("/api/[^/]+/user/password"))
+				|| ("DELETE".equals(method) && path.matches("/api/[^/]+/user"));
 	}
 
 	private String resolveClientIp(HttpServletRequest request) {

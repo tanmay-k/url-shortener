@@ -124,7 +124,7 @@ class UrlMappingServiceTest {
 	@Test
 	void resolveShortCodeToUrl_returnsLongUrl_whenEnabledMappingExists() {
 		UrlMappingEntity entity = TestDataFactory.aUrlMappingEntity(e -> e.setLongUrl("https://example.org/bar"));
-		when(urlMappingRepository.findByShortCodeAndEnabled("abc12345", true)).thenReturn(Optional.of(entity));
+		when(urlMappingRepository.findActiveByShortCode("abc12345")).thenReturn(Optional.of(entity));
 
 		String longUrl = urlMappingService.resolveShortCodeToUrl("abc12345");
 
@@ -132,8 +132,8 @@ class UrlMappingServiceTest {
 	}
 
 	@Test
-	void resolveShortCodeToUrl_throwsCustomExceptionWithNotFound_whenMappingMissingOrDisabled() {
-		when(urlMappingRepository.findByShortCodeAndEnabled("missing", true)).thenReturn(Optional.empty());
+	void resolveShortCodeToUrl_throwsCustomExceptionWithNotFound_whenMappingMissingOrDisabledOrOwnerDisabled() {
+		when(urlMappingRepository.findActiveByShortCode("missing")).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> urlMappingService.resolveShortCodeToUrl("missing"))
 				.isInstanceOf(CustomException.class)
