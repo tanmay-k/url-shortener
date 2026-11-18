@@ -6,8 +6,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.entity.UrlMappingEntity;
@@ -42,8 +41,15 @@ public class UrlMappingService implements IUrlMappingService {
 	// NEVER: fails fast if a caller wraps this in a transaction, which would break the short code retry loop
 	// (see saveWithUniqueShortCode). Must stay on this public method: Spring applies it through the proxy, so it
 	// would have no effect on the private method, nor on a call from within this class.
-	@Transactional(propagation = Propagation.NEVER)
+	// Deliberately NOT @Transactional(propagation = NEVER): that opens a synchronization scope which keeps every
+	// repository call's EntityManager (and its JDBC connection) open until this method returns, so each request ends
+	// up holding several connections at once and concurrent requests starve the pool and deadlock. See
+	// saveWithUniqueShortCode for why a surrounding transaction is still unacceptable.
 	public NewUrlMappingResponseRecord createNewMapping(String longUrl) {
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			throw new IllegalStateException("createNewMapping must not be called inside a transaction: its short code "
+					+ "retry loop cannot recover from a failed insert in an outer transaction.");
+		}
 		log.info("Request received to create new url mapping for {}", longUrl);
 
 		UrlMappingEntity newUrlMapping = new UrlMappingEntity();
@@ -78,10 +84,9 @@ public class UrlMappingService implements IUrlMappingService {
 	 * <p>
 	 * <b>This must not run inside an outer transaction.</b> A failed insert marks the surrounding transaction
 	 * rollback-only, so retrying within it would not work: the next {@code save} (or the commit) would fail even though
-	 * the retry used a fresh code. That is why {@link #createNewMapping} is annotated
-	 * {@code @Transactional(propagation = NEVER)}, which throws if a transaction is active, and each {@code save} runs
-	 * in its own transaction. If this ever needs to join a larger transaction, move the retry loop outside of it or run
-	 * each attempt in {@code REQUIRES_NEW}.
+	 * the retry used a fresh code. That is why {@link #createNewMapping} throws if a transaction is active, and each
+	 * {@code save} runs in its own transaction. If this ever needs to join a larger transaction, move the retry loop
+	 * outside of it or run each attempt in {@code REQUIRES_NEW}.
 	 * <p>
 	 * A {@link DataIntegrityViolationException} is not necessarily a short code collision (other constraints on the
 	 * table could trip it too), and the exception text for the violated index differs between MySQL and H2. So instead
