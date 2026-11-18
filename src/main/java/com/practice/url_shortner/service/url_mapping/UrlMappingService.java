@@ -103,8 +103,8 @@ public class UrlMappingService implements IUrlMappingService {
 				if (!urlMappingRepository.existsByShortCode(candidate)) {
 					throw e;
 				}
-				log.warn("Short code collision on attempt {}/{}, retrying with a new code.", attempt,
-						MAX_SHORT_CODE_ATTEMPTS);
+				log.warn("Short code collision on attempt {}/{} for code {}, retrying with a new code.", attempt,
+						MAX_SHORT_CODE_ATTEMPTS, candidate);
 			}
 		}
 		// With ~2.2e14 possible codes, exhausting the retries means something is wrong (e.g. a broken generator).
