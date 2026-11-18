@@ -18,6 +18,7 @@ public enum ErrorCode {
 	WEAK_PASSWORD("WEAK_PASSWORD", "The password does not meet the password policy.", HttpStatus.BAD_REQUEST),
 	PASSWORD_UNCHANGED("PASSWORD_UNCHANGED", "The new password must be different from the current password.", HttpStatus.BAD_REQUEST),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "Something went wrong.", HttpStatus.INTERNAL_SERVER_ERROR),
+	SHORT_CODE_GENERATION_FAILED("SHORT_CODE_GENERATION_FAILED", "Could not generate a unique short code. Please try again.", HttpStatus.INTERNAL_SERVER_ERROR),
 	INVALID_MAPPED_URL("INVALID_MAPPED_URL", "Invalid URL provided for mapping", HttpStatus.BAD_REQUEST),
 	USER_NOT_FOUND("USER_NOT_FOUND", "User not found.", HttpStatus.NOT_FOUND),
 	NOT_FOUND("NOT_FOUND", "Not found.", HttpStatus.NOT_FOUND),

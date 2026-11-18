@@ -13,6 +13,8 @@ public interface IUrlMappingRepository extends JpaRepository<UrlMappingEntity, I
 
 	Optional<UrlMappingEntity> findByShortCode(String shortCode);
 
+	boolean existsByShortCode(String shortCode);
+
 	/** The mapping for the short code, if both the mapping and the user who created it are enabled. */
 	@Query("""
 			SELECT m FROM UrlMappingEntity m
