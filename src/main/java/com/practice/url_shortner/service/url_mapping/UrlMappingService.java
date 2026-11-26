@@ -38,13 +38,14 @@ public class UrlMappingService implements IUrlMappingService {
 	private final IUserRepository userRepository;
 
 	@Override
-	// NEVER: fails fast if a caller wraps this in a transaction, which would break the short code retry loop
-	// (see saveWithUniqueShortCode). Must stay on this public method: Spring applies it through the proxy, so it
-	// would have no effect on the private method, nor on a call from within this class.
-	// Deliberately NOT @Transactional(propagation = NEVER): that opens a synchronization scope which keeps every
-	// repository call's EntityManager (and its JDBC connection) open until this method returns, so each request ends
-	// up holding several connections at once and concurrent requests starve the pool and deadlock. See
-	// saveWithUniqueShortCode for why a surrounding transaction is still unacceptable.
+	// Fails fast if a caller wraps this in a transaction, which would break the short code retry loop (see
+	// saveWithUniqueShortCode).
+	// Deliberately NOT @Transactional(propagation = NEVER). NEVER runs without a real transaction but still opens a
+	// transaction synchronization scope for the whole method (Spring's "empty" transaction). Under concurrent load
+	// with a small pool (8 connections, 10 parallel requests) that version stalled: Hikari timed out with "Connection
+	// is not available", and removing the annotation fixed it every time. Our explanation is that the scope kept each
+	// request's connection checked out until the method returned, so requests held one connection while waiting for
+	// another and deadlocked. The stall is measured; that mechanism is inferred, not confirmed in Spring's source.
 	public NewUrlMappingResponseRecord createNewMapping(String longUrl) {
 		if (TransactionSynchronizationManager.isActualTransactionActive()) {
 			throw new IllegalStateException("createNewMapping must not be called inside a transaction: its short code "

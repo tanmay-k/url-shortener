@@ -14,8 +14,8 @@ import com.practice.url_shortner.service.url_mapping.IUrlMappingService;
 /**
  * {@code createNewMapping} retries on short code collisions, which cannot work inside an outer transaction (a failed
  * insert marks it rollback-only), so it fails fast if one is active. The guard is a programmatic check rather than
- * {@code @Transactional(propagation = NEVER)}: NEVER keeps each repository call's connection open for the whole method,
- * which starved the connection pool under concurrent requests.
+ * {@code @Transactional(propagation = NEVER)}: that version stalled the connection pool under concurrent requests
+ * (see the comment on {@code createNewMapping}).
  */
 @SpringBootTest
 @ActiveProfiles("test")
