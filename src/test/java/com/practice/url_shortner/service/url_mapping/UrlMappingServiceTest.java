@@ -3,11 +3,14 @@ package com.practice.url_shortner.service.url_mapping;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,6 +44,9 @@ class UrlMappingServiceTest {
 	private IUrlMappingRepository urlMappingRepository;
 
 	@Mock
+	private ShortCodeGenerator shortCodeGenerator;
+
+	@Mock
 	private UserDetailsManager userDetailsManager;
 
 	@Mock
@@ -54,7 +61,7 @@ class UrlMappingServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		urlMappingService = new UrlMappingService(urlMappingRepository, userDetailsManager,
+		urlMappingService = new UrlMappingService(urlMappingRepository, shortCodeGenerator, userDetailsManager,
 				userEntityToUserResponseRecordMapper, userRepository);
 	}
 
@@ -79,14 +86,14 @@ class UrlMappingServiceTest {
 		mockAuthenticatedPrincipal("test-user");
 		UserEntity userEntity = TestDataFactory.aUserEntity(u -> u.setId(42));
 		when(userRepository.findByUsername("test-user")).thenReturn(Optional.of(userEntity));
+		when(shortCodeGenerator.generate()).thenReturn("aB3dE5gH");
 		when(urlMappingRepository.save(any(UrlMappingEntity.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
 		NewUrlMappingResponseRecord response = urlMappingService.createNewMapping("https://example.org/foo");
 
-		assertThat(response.shortCode()).hasSize(8);
-		assertThat(response.shortCode()).matches("[a-zA-Z0-9]{8}");
-		assertThat(response.shortUrl()).isEqualTo("http://localhost:8080/" + response.shortCode());
+		assertThat(response.shortCode()).isEqualTo("aB3dE5gH");
+		assertThat(response.shortUrl()).isEqualTo("http://localhost:8080/aB3dE5gH");
 	}
 
 	@Test
@@ -94,6 +101,7 @@ class UrlMappingServiceTest {
 		mockAuthenticatedPrincipal("test-user");
 		UserEntity userEntity = TestDataFactory.aUserEntity(u -> u.setId(42));
 		when(userRepository.findByUsername("test-user")).thenReturn(Optional.of(userEntity));
+		when(shortCodeGenerator.generate()).thenReturn("aB3dE5gH");
 		when(urlMappingRepository.save(any(UrlMappingEntity.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -111,6 +119,51 @@ class UrlMappingServiceTest {
 	}
 
 	@Test
+	void createNewMapping_retriesWithNewCode_whenShortCodeCollides() {
+		mockAuthenticatedPrincipal("test-user");
+		when(userRepository.findByUsername("test-user")).thenReturn(Optional.of(TestDataFactory.aUserEntity(u -> u.setId(42))));
+		when(shortCodeGenerator.generate()).thenReturn("taken123", "fresh456");
+		when(urlMappingRepository.save(any(UrlMappingEntity.class)))
+				.thenThrow(new DataIntegrityViolationException("duplicate"))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+		when(urlMappingRepository.existsByShortCode("taken123")).thenReturn(true);
+
+		NewUrlMappingResponseRecord response = urlMappingService.createNewMapping("https://example.org/foo");
+
+		assertThat(response.shortCode()).isEqualTo("fresh456");
+		verify(urlMappingRepository, times(2)).save(any(UrlMappingEntity.class));
+	}
+
+	@Test
+	void createNewMapping_throwsShortCodeGenerationFailed_afterMaxAttempts() {
+		mockAuthenticatedPrincipal("test-user");
+		when(userRepository.findByUsername("test-user")).thenReturn(Optional.of(TestDataFactory.aUserEntity(u -> u.setId(42))));
+		when(shortCodeGenerator.generate()).thenReturn("taken123");
+		when(urlMappingRepository.save(any(UrlMappingEntity.class)))
+				.thenThrow(new DataIntegrityViolationException("duplicate"));
+		when(urlMappingRepository.existsByShortCode("taken123")).thenReturn(true);
+
+		assertThatThrownBy(() -> urlMappingService.createNewMapping("https://example.org/foo"))
+				.isInstanceOf(CustomException.class)
+				.extracting(ex -> ((CustomException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.SHORT_CODE_GENERATION_FAILED);
+		verify(urlMappingRepository, times(5)).save(any(UrlMappingEntity.class));
+	}
+
+	@Test
+	void createNewMapping_rethrowsIntegrityViolation_whenShortCodeIsNotTaken() {
+		mockAuthenticatedPrincipal("test-user");
+		when(userRepository.findByUsername("test-user")).thenReturn(Optional.of(TestDataFactory.aUserEntity(u -> u.setId(42))));
+		when(shortCodeGenerator.generate()).thenReturn("fresh456");
+		DataIntegrityViolationException failure = new DataIntegrityViolationException("some other constraint");
+		when(urlMappingRepository.save(any(UrlMappingEntity.class))).thenThrow(failure);
+		when(urlMappingRepository.existsByShortCode("fresh456")).thenReturn(false);
+
+		assertThatThrownBy(() -> urlMappingService.createNewMapping("https://example.org/foo")).isSameAs(failure);
+		verify(urlMappingRepository, times(1)).save(any(UrlMappingEntity.class));
+	}
+
+	@Test
 	void createNewMapping_throwsCustomExceptionWithUserNotFound_whenPrincipalUserMissing() {
 		mockAuthenticatedPrincipal("ghost-user");
 		when(userRepository.findByUsername("ghost-user")).thenReturn(Optional.empty());
@@ -119,6 +172,7 @@ class UrlMappingServiceTest {
 				.isInstanceOf(CustomException.class)
 				.extracting(ex -> ((CustomException) ex).getErrorCode())
 				.isEqualTo(ErrorCode.USER_NOT_FOUND);
+		verify(urlMappingRepository, never()).save(any(UrlMappingEntity.class));
 	}
 
 	@Test

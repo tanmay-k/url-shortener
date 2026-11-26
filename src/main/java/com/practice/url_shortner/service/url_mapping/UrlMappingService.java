@@ -2,10 +2,11 @@ package com.practice.url_shortner.service.url_mapping;
 
 import java.time.LocalDateTime;
 
-import org.apache.commons.lang3.RandomStringUtils;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.practice.url_shortner.constants.ErrorCode;
 import com.practice.url_shortner.entity.UrlMappingEntity;
@@ -24,9 +25,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class UrlMappingService implements IUrlMappingService {
 
-	private static final int SHORT_CODE_LENGTH = 8;
+	private static final int MAX_SHORT_CODE_ATTEMPTS = 5;
 
 	private final IUrlMappingRepository urlMappingRepository;
+
+	private final ShortCodeGenerator shortCodeGenerator;
 
 	private final UserDetailsManager userDetailsManager;
 
@@ -35,13 +38,22 @@ public class UrlMappingService implements IUrlMappingService {
 	private final IUserRepository userRepository;
 
 	@Override
-	//	@Transactional
+	// Fails fast if a caller wraps this in a transaction, which would break the short code retry loop (see
+	// saveWithUniqueShortCode).
+	// Deliberately NOT @Transactional(propagation = NEVER). NEVER runs without a real transaction but still opens a
+	// transaction synchronization scope for the whole method (Spring's "empty" transaction). Under concurrent load
+	// with a small pool (8 connections, 10 parallel requests) that version stalled: Hikari timed out with "Connection
+	// is not available", and removing the annotation fixed it every time. Our explanation is that the scope kept each
+	// request's connection checked out until the method returned, so requests held one connection while waiting for
+	// another and deadlocked. The stall is measured; that mechanism is inferred, not confirmed in Spring's source.
 	public NewUrlMappingResponseRecord createNewMapping(String longUrl) {
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			throw new IllegalStateException("createNewMapping must not be called inside a transaction: its short code "
+					+ "retry loop cannot recover from a failed insert in an outer transaction.");
+		}
 		log.info("Request received to create new url mapping for {}", longUrl);
-		String newShortCode = RandomStringUtils.secureStrong().nextAlphanumeric(SHORT_CODE_LENGTH);
 
 		UrlMappingEntity newUrlMapping = new UrlMappingEntity();
-		newUrlMapping.setShortCode(newShortCode);
 		newUrlMapping.setLongUrl(longUrl);
 
 		LocalDateTime now = LocalDateTime.now();
@@ -55,21 +67,56 @@ public class UrlMappingService implements IUrlMappingService {
 		newUrlMapping.setCreatedBy(userEntity.getId());
 		newUrlMapping.setUpdatedBy(userEntity.getId());
 		newUrlMapping.setEnabled(true);
-		UrlMappingEntity savedEntity = urlMappingRepository.save(newUrlMapping);
+		UrlMappingEntity savedEntity = saveWithUniqueShortCode(newUrlMapping);
 
 		log.info("New url mapping created for long url {} with short code {}.", longUrl, savedEntity.getShortCode());
 
-		return new NewUrlMappingResponseRecord(newShortCode, "http://localhost:8080/" + newShortCode);
+		return new NewUrlMappingResponseRecord(savedEntity.getShortCode(),
+				"http://localhost:8080/" + savedEntity.getShortCode());
+	}
+
+	/**
+	 * Saves the mapping under a freshly generated short code, regenerating and retrying when the code collides with an
+	 * existing one.
+	 * <p>
+	 * Uniqueness is decided by the database: {@code url_mapping.short_code} has a unique index, so we insert
+	 * optimistically and treat a constraint violation as a collision, rather than doing check-then-insert (which races
+	 * under concurrency and costs an extra query on every request for a collision that is very rare).
+	 * <p>
+	 * <b>This must not run inside an outer transaction.</b> A failed insert marks the surrounding transaction
+	 * rollback-only, so retrying within it would not work: the next {@code save} (or the commit) would fail even though
+	 * the retry used a fresh code. That is why {@link #createNewMapping} throws if a transaction is active, and each
+	 * {@code save} runs in its own transaction. If this ever needs to join a larger transaction, move the retry loop
+	 * outside of it or run each attempt in {@code REQUIRES_NEW}.
+	 * <p>
+	 * A {@link DataIntegrityViolationException} is not necessarily a short code collision (other constraints on the
+	 * table could trip it too), and the exception text for the violated index differs between MySQL and H2. So instead
+	 * of parsing it, we confirm with {@code existsByShortCode}: if the code is not taken, the failure had another cause
+	 * and is rethrown instead of being retried.
+	 */
+	private UrlMappingEntity saveWithUniqueShortCode(UrlMappingEntity mapping) {
+		for (int attempt = 1; attempt <= MAX_SHORT_CODE_ATTEMPTS; attempt++) {
+			String candidate = shortCodeGenerator.generate();
+			mapping.setShortCode(candidate);
+			try {
+				return urlMappingRepository.save(mapping);
+			} catch (DataIntegrityViolationException e) {
+				if (!urlMappingRepository.existsByShortCode(candidate)) {
+					throw e;
+				}
+				log.warn("Short code collision on attempt {}/{} for code {}, retrying with a new code.", attempt,
+						MAX_SHORT_CODE_ATTEMPTS, candidate);
+			}
+		}
+		// With ~2.2e14 possible codes, exhausting the retries means something is wrong (e.g. a broken generator).
+		log.error("Could not generate a unique short code after {} attempts.", MAX_SHORT_CODE_ATTEMPTS);
+		throw CustomException.builder().errorCode(ErrorCode.SHORT_CODE_GENERATION_FAILED).build();
 	}
 
 	@Override
 	public void disableMapping(String longUrl) {
 		// TODO Auto-generated method stub
 
-	}
-
-	private boolean isShortCodeUnique(String shortCode) {
-		return true;
 	}
 
 	@Override
